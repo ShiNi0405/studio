@@ -47,8 +47,9 @@ for (const key in configValues) {
 }
 
 if (configIssue) {
+  const fullErrorMessage = `CRITICAL CONFIGURATION ERROR: ${configIssue} The application cannot start without valid Firebase credentials. You can find these credentials in your Firebase project settings.`;
   console.error("Detailed Firebase Config Error:", configIssue);
-  throw new Error(configIssue + " The application cannot start without valid Firebase credentials. You can find these credentials in your Firebase project settings.");
+  throw new Error(fullErrorMessage);
 }
 
 const firebaseConfig = {
@@ -81,3 +82,4 @@ auth = getAuth(app);
 db = getFirestore(app);
 
 export { app, auth, db };
+
