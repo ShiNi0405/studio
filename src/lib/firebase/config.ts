@@ -1,3 +1,4 @@
+
 // src/lib/firebase/config.ts
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
@@ -36,11 +37,11 @@ for (const key in configValues) {
   const K = key as keyof typeof configValues;
   const envVarName = envVarNames[K];
   if (!configValues[K]) {
-    configIssue = `Firebase config error: Environment variable '${envVarName}' for '${K}' is missing. Please ensure it's set in your /workspace/.env file.`;
+    configIssue = `Firebase config error: Environment variable '${envVarName}' for '${K}' is missing. Please ensure it's set in your .env file in the project root.`;
     break;
   }
   if (configValues[K] === placeholderValues[K]) {
-    configIssue = `Firebase config error: Environment variable '${envVarName}' for '${K}' is using a placeholder value ('${placeholderValues[K]}'). Please replace it with your actual Firebase project credential in the /workspace/.env file.`;
+    configIssue = `Firebase config error: Environment variable '${envVarName}' for '${K}' is using a placeholder value ('${placeholderValues[K]}'). Please replace it with your actual Firebase project credential in your .env file in the project root.`;
     break;
   }
 }
@@ -70,7 +71,7 @@ if (getApps().length === 0) {
   } catch (error) {
     console.error("Firebase initialization failed with provided config:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Firebase initialization failed. Original error: ${errorMessage}. This usually indicates an issue with the Firebase config values, even if they are not placeholders (e.g., a typo in a real key, or the key is for a different project). Please double-check your credentials in /workspace/.env and in your Firebase project settings.`);
+    throw new Error(`Firebase initialization failed. Original error: ${errorMessage}. This usually indicates an issue with the Firebase config values, even if they are not placeholders (e.g., a typo in a real key, or the key is for a different project). Please double-check your credentials in your .env file and in your Firebase project settings.`);
   }
 } else {
   app = getApps()[0];
