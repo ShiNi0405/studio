@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -31,7 +30,7 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import type { Barber, Customer } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { suggestTimeSlots } from '@/ai/flows/suggest-time-slots';
+// import { suggestTimeSlots } from '@/ai/flows/suggest-time-slots'; // AI flow no longer used
 import { createBookingAction } from '@/app/actions/bookingActions';
 import { Timestamp } from 'firebase/firestore';
 
@@ -39,7 +38,6 @@ const bookingFormSchema = z.object({
   service: z.string().min(1, "Service selection is required."),
   date: z.date({ required_error: "A date is required." }),
   preferredTimeOfDay: z.enum(["Morning", "Afternoon", "Evening"], { required_error: "Preferred time of day is required." }),
-  suggestedSlot: z.string().optional(), // ISO string of the chosen slot
   notes: z.string().max(500, "Notes cannot exceed 500 characters.").optional(),
 });
 
@@ -61,8 +59,6 @@ const dummyServices = [
 
 export default function BookingForm({ barber, customer }: BookingFormProps) {
   const { toast } = useToast();
-  const [isFetchingSlots, setIsFetchingSlots] = useState(false);
-  const [suggestedSlots, setSuggestedSlots] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<BookingFormValues>({
@@ -74,66 +70,19 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     },
   });
 
-  const handleSuggestSlots = async () => {
-    const { date, preferredTimeOfDay } = form.getValues();
-    if (!date || !preferredTimeOfDay) {
-      toast({ title: "Missing Information", description: "Please select a date and preferred time of day.", variant: "destructive" });
-      return;
-    }
-
-    setIsFetchingSlots(true);
-    setSuggestedSlots([]);
-    form.setValue('suggestedSlot', undefined); // Clear previous selection
-
-    const selectedDateString = format(date, "yyyy-MM-dd");
-
-    try {
-      const result = await suggestTimeSlots({
-        barberAvailability: barber.availability && Object.keys(JSON.parse(barber.availability)).length > 0 
-          ? barber.availability 
-          : JSON.stringify({ 
-              "monday": ["09:00-17:00"], "tuesday": ["09:00-17:00"], "wednesday": ["09:00-17:00"], 
-              "thursday": ["09:00-17:00"], "friday": ["09:00-17:00"], "saturday": ["10:00-14:00"] 
-            }), 
-        preferredTimeOfDay,
-        selectedDate: selectedDateString,
-      });
-      
-      if (result.suggestedTimeSlots && result.suggestedTimeSlots.length > 0) {
-        // The AI flow should now only return slots for the selectedDate.
-        // Client-side filtering can be a backup.
-        const filteredSlots = result.suggestedTimeSlots.filter(slot => slot.startsWith(selectedDateString));
-        
-        if (filteredSlots.length > 0) {
-            setSuggestedSlots(filteredSlots);
-            toast({ title: "Time Slots Suggested", description: "Please select a slot below." });
-        } else {
-            toast({ title: "No Slots Available", description: `No slots found for ${preferredTimeOfDay.toLowerCase()} on ${selectedDateString}. Try a different preference or date.`, variant: "default" });
-        }
-      } else {
-        toast({ title: "No Slots Available", description: "The AI couldn't find any suitable slots for the selected date and preference. Please try different options.", variant: "default" });
-      }
-    } catch (error: any) {
-      console.error("Error fetching time slots:", error);
-      toast({ title: "Error Fetching Slots", description: error.message || "Could not fetch time slots. Please try again.", variant: "destructive" });
-    } finally {
-      setIsFetchingSlots(false);
-    }
-  };
-
   async function onSubmit(data: BookingFormValues) {
-    if (!data.suggestedSlot) {
-      toast({ title: "Slot Required", description: "Please select a suggested time slot.", variant: "destructive" });
-      return;
-    }
     setIsSubmitting(true);
     try {
+      // Set the time to the beginning of the selected date
+      const selectedDate = new Date(data.date);
+      selectedDate.setHours(0, 0, 0, 0);
+
       const bookingData = {
         customerId: customer.uid,
         customerName: customer.displayName || 'Customer',
         barberId: barber.uid,
         barberName: barber.displayName || 'Barber',
-        dateTime: Timestamp.fromDate(new Date(data.suggestedSlot)),
+        dateTime: Timestamp.fromDate(selectedDate), // Store selected date (time at midnight)
         service: data.service,
         notes: data.notes || '',
         preferredTimeOfDay: data.preferredTimeOfDay,
@@ -143,15 +92,13 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       const result = await createBookingAction(bookingData);
 
       if (result.success) {
-        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${format(new Date(data.suggestedSlot), "PPP p")} has been sent.` });
+        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${format(data.date, "PPP")} (${data.preferredTimeOfDay}) has been sent.` });
         form.reset({
             service: "",
             preferredTimeOfDay: undefined,
             notes: "",
-            date: undefined, // Also reset date
-            suggestedSlot: undefined,
+            date: undefined,
         });
-        setSuggestedSlots([]);
       } else {
         throw new Error(result.error || "Failed to create booking.");
       }
@@ -221,11 +168,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                   <Calendar
                     mode="single"
                     selected={field.value}
-                    onSelect={(date) => {
-                      field.onChange(date);
-                      setSuggestedSlots([]); // Clear slots if date changes
-                      form.setValue('suggestedSlot', undefined);
-                    }}
+                    onSelect={field.onChange}
                     disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) } // Disable past dates
                     initialFocus
                   />
@@ -243,11 +186,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             <FormItem>
               <FormLabel>Preferred Time of Day</FormLabel>
               <Select 
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  setSuggestedSlots([]); // Clear slots if preference changes
-                  form.setValue('suggestedSlot', undefined);
-                }} 
+                onValueChange={field.onChange} 
                 defaultValue={field.value}
               >
                 <FormControl>
@@ -265,54 +204,6 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             </FormItem>
           )}
         />
-
-        <Button type="button" onClick={handleSuggestSlots} disabled={isFetchingSlots || !form.watch('date') || !form.watch('preferredTimeOfDay')} className="w-full" variant="secondary">
-          {isFetchingSlots && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Suggest Available Times
-        </Button>
-
-        {suggestedSlots.length > 0 && (
-          <FormField
-            control={form.control}
-            name="suggestedSlot"
-            render={({ field }) => (
-              <FormItem className="space-y-3">
-                <FormLabel>Select a Time Slot (on {form.getValues('date') ? format(form.getValues('date') as Date, "PPP") : ''})</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    // defaultValue={field.value} // Using buttons to set value directly
-                    value={field.value}
-                    className="grid grid-cols-2 md:grid-cols-3 gap-4"
-                  >
-                    {suggestedSlots.map((slot) => (
-                      <FormItem key={slot} className="flex items-center space-x-3 space-y-0">
-                        <FormControl>
-                           <Button 
-                            type="button" 
-                            variant={field.value === slot ? "default" : "outline"}
-                            onClick={() => field.onChange(slot)}
-                            className="w-full justify-center py-3 text-center"
-                          >
-                            {format(new Date(slot), "p")}
-                          </Button>
-                        </FormControl>
-                        {/* Hidden radio for form state, styled button for UI */}
-                        <RadioGroupItem value={slot} className="sr-only" />
-                      </FormItem>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        
-        { form.watch('date') && form.watch('preferredTimeOfDay') && !isFetchingSlots && suggestedSlots.length === 0 && form.getFieldState('suggestedSlot').isTouched && (
-             <p className="text-sm text-center text-muted-foreground">No AI-suggested slots found for this date and preference. Please try different options or contact the barber directly.</p>
-        )}
-
 
         <FormField
           control={form.control}
@@ -334,7 +225,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={isSubmitting || !form.watch('suggestedSlot')} className="w-full text-lg py-6">
+        <Button type="submit" disabled={isSubmitting || !form.watch('date') || !form.watch('preferredTimeOfDay') || !form.watch('service') } className="w-full text-lg py-6">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Request Appointment
         </Button>
@@ -342,4 +233,3 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     </Form>
   );
 }
-
