@@ -1,7 +1,7 @@
 
 'use client';
 
-import * as z from 'zod'; // Added Zod import
+import * as z from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
@@ -31,8 +31,8 @@ import { CalendarIcon, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import type { Barber, Customer } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-import { suggestTimeSlots } from '@/ai/flows/suggest-time-slots'; // Assuming this is correctly set up as a server action
-import { createBookingAction } from '@/app/actions/bookingActions'; // Server action
+import { suggestTimeSlots } from '@/ai/flows/suggest-time-slots';
+import { createBookingAction } from '@/app/actions/bookingActions';
 import { Timestamp } from 'firebase/firestore';
 
 const bookingFormSchema = z.object({
@@ -85,19 +85,23 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     setSuggestedSlots([]);
     form.setValue('suggestedSlot', undefined); // Clear previous selection
 
+    const selectedDateString = format(date, "yyyy-MM-dd");
+
     try {
       const result = await suggestTimeSlots({
-        // Barber availability needs to be a string. Use barber.availability or a default.
-        barberAvailability: barber.availability || JSON.stringify({ 
-            "monday": ["09:00-17:00"], "tuesday": ["09:00-17:00"], "wednesday": ["09:00-17:00"], 
-            "thursday": ["09:00-17:00"], "friday": ["09:00-17:00"], "saturday": ["10:00-14:00"] 
-        }), 
+        barberAvailability: barber.availability && Object.keys(JSON.parse(barber.availability)).length > 0 
+          ? barber.availability 
+          : JSON.stringify({ 
+              "monday": ["09:00-17:00"], "tuesday": ["09:00-17:00"], "wednesday": ["09:00-17:00"], 
+              "thursday": ["09:00-17:00"], "friday": ["09:00-17:00"], "saturday": ["10:00-14:00"] 
+            }), 
         preferredTimeOfDay,
+        selectedDate: selectedDateString,
       });
       
       if (result.suggestedTimeSlots && result.suggestedTimeSlots.length > 0) {
-        // Filter slots to be on the selected date
-        const selectedDateString = format(date, "yyyy-MM-dd");
+        // The AI flow should now only return slots for the selectedDate.
+        // Client-side filtering can be a backup.
         const filteredSlots = result.suggestedTimeSlots.filter(slot => slot.startsWith(selectedDateString));
         
         if (filteredSlots.length > 0) {
@@ -107,11 +111,11 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             toast({ title: "No Slots Available", description: `No slots found for ${preferredTimeOfDay.toLowerCase()} on ${selectedDateString}. Try a different preference or date.`, variant: "default" });
         }
       } else {
-        toast({ title: "No Slots Available", description: "The AI couldn't find any suitable slots. Please try different options.", variant: "default" });
+        toast({ title: "No Slots Available", description: "The AI couldn't find any suitable slots for the selected date and preference. Please try different options.", variant: "default" });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching time slots:", error);
-      toast({ title: "Error", description: "Could not fetch time slots. Please try again.", variant: "destructive" });
+      toast({ title: "Error Fetching Slots", description: error.message || "Could not fetch time slots. Please try again.", variant: "destructive" });
     } finally {
       setIsFetchingSlots(false);
     }
@@ -136,16 +140,25 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         status: 'pending' as const,
       };
       
-      await createBookingAction(bookingData);
+      const result = await createBookingAction(bookingData);
 
-      toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} has been sent.` });
-      form.reset();
-      setSuggestedSlots([]);
-      // Potentially redirect or show a success message component
-      // router.push('/dashboard/my-bookings');
-    } catch (error) {
+      if (result.success) {
+        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${format(new Date(data.suggestedSlot), "PPP p")} has been sent.` });
+        form.reset({
+            service: "",
+            preferredTimeOfDay: undefined,
+            notes: "",
+            date: undefined, // Also reset date
+            suggestedSlot: undefined,
+        });
+        setSuggestedSlots([]);
+      } else {
+        throw new Error(result.error || "Failed to create booking.");
+      }
+      
+    } catch (error: any) {
       console.error("Booking submission error:", error);
-      toast({ title: "Booking Failed", description: "There was an error submitting your booking. Please try again.", variant: "destructive" });
+      toast({ title: "Booking Failed", description: error.message || "There was an error submitting your booking. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -264,11 +277,12 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             name="suggestedSlot"
             render={({ field }) => (
               <FormItem className="space-y-3">
-                <FormLabel>Select a Time Slot</FormLabel>
+                <FormLabel>Select a Time Slot (on {form.getValues('date') ? format(form.getValues('date') as Date, "PPP") : ''})</FormLabel>
                 <FormControl>
                   <RadioGroup
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    // defaultValue={field.value} // Using buttons to set value directly
+                    value={field.value}
                     className="grid grid-cols-2 md:grid-cols-3 gap-4"
                   >
                     {suggestedSlots.map((slot) => (
@@ -295,8 +309,8 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
           />
         )}
         
-        {suggestedSlots.length === 0 && form.formState.isSubmitted && !isFetchingSlots && (
-             <p className="text-sm text-center text-muted-foreground">No slots available based on AI suggestion. Try different preferences.</p>
+        { form.watch('date') && form.watch('preferredTimeOfDay') && !isFetchingSlots && suggestedSlots.length === 0 && form.getFieldState('suggestedSlot').isTouched && (
+             <p className="text-sm text-center text-muted-foreground">No AI-suggested slots found for this date and preference. Please try different options or contact the barber directly.</p>
         )}
 
 
