@@ -1,4 +1,4 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -18,6 +18,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  allowedDevOrigins: [
+    "https://9000-firebase-studio-1749202241482.cluster-ys234awlzbhwoxmkkse6qo3fz6.cloudworkstations.dev",
+    // 你开发时用的本地地址也可以加
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+  ],
 };
 
 export default nextConfig;

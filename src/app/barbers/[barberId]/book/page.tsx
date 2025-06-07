@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
@@ -24,7 +25,7 @@ function BookAppointmentPageContent() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push(`/auth/login?redirect=/barbers/${barberId}/book`);
+      router.push(`/login?redirect=/barbers/${barberId}/book`);
     }
   }, [user, authLoading, router, barberId]);
 
@@ -75,19 +76,17 @@ function BookAppointmentPageContent() {
   }
 
   if (!user) {
-     // This should ideally be handled by the redirect, but as a fallback:
     return (
         <div className="text-center py-10">
             <p className="text-xl text-muted-foreground">Please log in to book an appointment.</p>
             <Button asChild className="mt-4">
-                <Link href={`/auth/login?redirect=/barbers/${barberId}/book`}>Log In</Link>
+                <Link href={`/login?redirect=/barbers/${barberId}/book`}>Log In</Link>
             </Button>
         </div>
     );
   }
   
   if (!barber) {
-    // Should be covered by error state, but as a fallback
     return <div className="text-center py-10"><p className="text-xl text-muted-foreground">Barber information not available.</p></div>;
   }
   
@@ -140,4 +139,3 @@ export default function BookAppointmentPage() {
     </Suspense>
   );
 }
-

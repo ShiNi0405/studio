@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,7 +7,7 @@ import { db } from '@/lib/firebase/config';
 import type { Booking, Barber } from '@/types';
 import { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import Link from 'next/link';
 import { ChevronLeft, Loader2, AlertCircle, Star, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils'; // Added for cn utility
 
 const reviewSchema = z.object({
   rating: z.coerce.number().min(1, "Rating is required").max(5, "Rating cannot exceed 5"),
@@ -48,7 +50,7 @@ function SubmitReviewPageContent() {
 
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push(`/auth/login?redirect=/reviews/submit/${bookingId}`);
+      router.push(`/login?redirect=/reviews/submit/${bookingId}`);
       return;
     }
 
@@ -64,7 +66,6 @@ function SubmitReviewPageContent() {
     setError(null);
     setAlreadyReviewed(false);
     try {
-      // Check for existing review
       const reviewQuery = query(collection(db, 'reviews'), where('bookingId', '==', bookingId), where('customerId', '==', user.uid));
       const reviewSnapshot = await getDocs(reviewQuery);
       if (!reviewSnapshot.empty) {
@@ -74,7 +75,6 @@ function SubmitReviewPageContent() {
         return;
       }
 
-      // Fetch booking
       const bookingDocRef = doc(db, 'bookings', bookingId);
       const bookingSnap = await getDoc(bookingDocRef);
 
@@ -98,7 +98,6 @@ function SubmitReviewPageContent() {
       }
       setBooking(bookingData);
 
-      // Fetch barber details
       const barberDocRef = doc(db, 'users', bookingData.barberId);
       const barberSnap = await getDoc(barberDocRef);
       if (barberSnap.exists()){
@@ -138,7 +137,7 @@ function SubmitReviewPageContent() {
       };
       await addDoc(collection(db, 'reviews'), reviewData);
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
-      router.push(`/barbers/${booking.barberId}`); // Redirect to barber's profile or bookings page
+      router.push(`/barbers/${booking.barberId}`); 
     } catch (err) {
       console.error("Error submitting review:", err);
       toast({ title: "Submission Failed", description: "Could not submit your review.", variant: "destructive" });
@@ -252,4 +251,3 @@ export default function SubmitReviewPage() {
     </Suspense>
   );
 }
-

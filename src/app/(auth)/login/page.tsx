@@ -3,7 +3,7 @@
 
 import { AuthForm } from '@/components/auth/AuthForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button'; // Added for Link consistency
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [formLoading, setFormLoading] = useState(false); // Renamed to avoid conflict with context's loading
+  const [formLoading, setFormLoading] = useState(false);
   const { user, loading: authLoading, signIn } = useAuth();
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function LoginPage() {
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Button variant="link" asChild className="p-0 h-auto">
-              <Link href="/auth/signup">
+              <Link href="/signup">
                 Sign up
               </Link>
             </Button>

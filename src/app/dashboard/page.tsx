@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,7 +15,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/auth/login');
+      router.push('/login');
     }
   }, [user, loading, router]);
 
@@ -27,7 +28,7 @@ export default function DashboardPage() {
   }
 
   if (!user) {
-    return null; // Or a message telling to login, though useEffect should redirect
+    return null; 
   }
 
   return (

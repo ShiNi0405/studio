@@ -3,19 +3,20 @@
 
 import { AuthForm } from '@/components/auth/AuthForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button'; // Added for Link consistency
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
-import { useAuth, UserRole } from '@/contexts/AuthContext'; // UserRole imported from new context
+import { useAuth } from '@/contexts/AuthContext';
+import type { UserRole } from '@/types';
 
 
 function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const [formLoading, setFormLoading] = useState(false); // Renamed to avoid conflict
+  const [formLoading, setFormLoading] = useState(false);
   const { user, loading: authLoading, signUp } = useAuth();
 
   const initialRole = searchParams.get('role') as UserRole | undefined;
@@ -72,7 +73,7 @@ function SignupPageContent() {
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
             <Button variant="link" asChild className="p-0 h-auto">
-              <Link href="/auth/login">
+              <Link href="/login">
                 Log in
               </Link>
             </Button>

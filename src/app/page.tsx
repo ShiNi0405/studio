@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -84,7 +85,7 @@ export default function HomePage() {
                 Grow your business with Barbermatch.
               </p>
               <Button variant="secondary" size="lg" className="mt-6 text-primary" asChild>
-                <Link href="/auth/signup?role=barber">
+                <Link href="/signup?role=barber">
                   Join as a Barber <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

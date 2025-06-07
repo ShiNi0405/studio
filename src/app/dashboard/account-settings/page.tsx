@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,12 +20,11 @@ export default function AccountSettingsPage() {
   }
 
   if (!user) {
-    // Should be redirected by AuthProvider or page-level useEffect, but as a fallback
     return (
       <div className="text-center py-10">
         <p className="text-xl">Please log in to view account settings.</p>
         <Button asChild className="mt-4">
-          <Link href="/auth/login?redirect=/dashboard/account-settings">Log In</Link>
+          <Link href="/login?redirect=/dashboard/account-settings">Log In</Link>
         </Button>
       </div>
     );

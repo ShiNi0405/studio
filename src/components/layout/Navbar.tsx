@@ -14,9 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-// Removed direct auth import, logout is handled by context now
-// import { auth } from '@/lib/firebase/config'; 
-import { useToast } from '@/hooks/use-toast'; // For potential logout error messages
+import { useToast } from '@/hooks/use-toast';
 
 
 const Navbar = () => {
@@ -27,8 +25,7 @@ const Navbar = () => {
     try {
       await logout();
       toast({ title: "Logged Out", description: "You have been successfully logged out."});
-      // router.push('/'); // Usually AuthContext handles redirect indirectly via user state change
-    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch (error: any) { 
       console.error('Error signing out:', error);
       toast({ title: "Logout Failed", description: error.message || "Could not log out.", variant: "destructive"});
     }
@@ -37,13 +34,13 @@ const Navbar = () => {
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
     const names = name.split(' ');
-    if (names.length > 1 && names[0] && names[names.length - 1]) { // Added checks for names[0] and names[names.length-1]
+    if (names.length > 1 && names[0] && names[names.length - 1]) { 
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
-    if (names[0]) { // Check if names[0] exists
+    if (names[0]) { 
         return names[0][0].toUpperCase();
     }
-    return 'U'; // Fallback if name is unusual
+    return 'U'; 
   };
 
   return (
@@ -58,7 +55,6 @@ const Navbar = () => {
           </Button>
           {loading ? (
             <div className="flex items-center gap-2">
-              {/* Simplified loading state for navbar */}
               <UserCircle className="h-8 w-8 text-muted-foreground animate-pulse" />
             </div>
           ) : user ? (
@@ -111,12 +107,12 @@ const Navbar = () => {
           ) : (
             <>
               <Button variant="ghost" asChild>
-                <Link href="/auth/login">
+                <Link href="/login">
                   <LogIn className="mr-2 h-4 w-4" /> Login
                 </Link>
               </Button>
               <Button asChild>
-                <Link href="/auth/signup">
+                <Link href="/signup">
                   <UserPlus className="mr-2 h-4 w-4" /> Sign Up
                 </Link>
               </Button>
