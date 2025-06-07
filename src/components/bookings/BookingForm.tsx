@@ -18,6 +18,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
@@ -29,14 +36,14 @@ import { Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 const bookingFormSchema = z.object({
-  style: z.string().optional(), // Style is now optional, could come from query
-  service: z.string().optional(), // Service is optional if style is provided
+  style: z.string().optional(), 
+  service: z.string().optional(), 
   date: z.date({ required_error: "A date is required." }),
   time: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Invalid time format. Use HH:MM (e.g., 14:30)."}),
   notes: z.string().max(500, "Notes cannot exceed 500 characters.").optional(),
 }).refine(data => data.style || data.service, {
   message: "Either a style or a service must be selected/provided.",
-  path: ["service"], // Show error on service field if neither is present
+  path: ["service"], 
 });
 
 
@@ -65,7 +72,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       style: suggestedStyleFromQuery || undefined,
-      service: suggestedStyleFromQuery ? undefined : "", // If style from query, service can be empty
+      service: suggestedStyleFromQuery ? undefined : "", 
       time: "",
       notes: "",
     },
@@ -74,7 +81,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
   useEffect(() => {
     if (suggestedStyleFromQuery) {
       form.setValue('style', suggestedStyleFromQuery);
-      form.setValue('service', undefined); // Clear service if style is from query
+      form.setValue('service', undefined); 
     }
   }, [suggestedStyleFromQuery, form]);
 
@@ -83,8 +90,6 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     setIsSubmitting(true);
     try {
       const selectedDate = new Date(data.date);
-      // Time string is like "HH:MM". We'll store date and time separately for now as per plan.
-      // Firestore `dateTime` will just be the date part (set to midnight).
       
       const bookingData = {
         customerId: customer.uid,
@@ -93,7 +98,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         barberName: barber.displayName || 'Barber',
         dateTime: Timestamp.fromDate(selectedDate),
         style: data.style || undefined,
-        service: data.style ? undefined : data.service, // Only save service if style is not set
+        service: data.style ? undefined : data.service, 
         time: data.time,
         notes: data.notes || '',
         status: 'pending' as const,
@@ -195,7 +200,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
-                    disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) } // Disable past dates
+                    disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) } 
                     initialFocus
                   />
                 </PopoverContent>
