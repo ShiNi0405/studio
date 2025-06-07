@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -117,13 +118,20 @@ export default function BookingRequestsPage() {
           {bookings.map(booking => (
             <Card key={booking.id} className="flex flex-col justify-between hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle className="text-xl">{booking.service || "Appointment Request"}</CardTitle>
+                <CardTitle className="text-xl">{booking.style || booking.service || "Appointment Request"}</CardTitle>
                 <CardDescription>From: {booking.customerName}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-sm text-foreground">
-                  <strong>Date:</strong> {format(new Date((booking.dateTime as unknown as Timestamp).seconds * 1000), 'PPP p')}
+                  <strong>Date & Time:</strong> {booking.dateTime ? format(new Date((booking.dateTime as unknown as Timestamp).seconds * 1000), 'PPP p') : 'N/A'}
                 </p>
+                {/* 
+                  The Firestore data you provided had `preferredTimeOfDay`. 
+                  However, the current BookingForm collects a specific HH:MM time which is incorporated into `booking.dateTime`.
+                  If `preferredTimeOfDay` is indeed being saved and needed for display, ensure it's in the `Booking` type 
+                  and that the `createBookingAction` saves it. Then uncomment and use below:
+                  {booking.preferredTimeOfDay && <p className="text-sm text-muted-foreground mt-1"><strong>Preferred:</strong> {booking.preferredTimeOfDay}</p>}
+                */}
                 {booking.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2"><strong>Notes:</strong> {booking.notes}</p>}
                 <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'} className="mt-3 capitalize">{booking.status}</Badge>
               </CardContent>
@@ -134,10 +142,10 @@ export default function BookingRequestsPage() {
                         size="sm" 
                         onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
                         disabled={updatingBookingId === booking.id}
-                        className="flex-1"
+                        className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
                     >
                         {updatingBookingId === booking.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Confirm
+                        Accept
                     </Button>
                     <Button 
                         variant="destructive" 
@@ -171,7 +179,7 @@ export default function BookingRequestsPage() {
                         className="flex-1"
                     >
                          {updatingBookingId === booking.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Cancel
+                        Cancel Appointment
                     </Button>
                     </>
                 )}
