@@ -1,10 +1,10 @@
+
 'use client';
 
 import { AuthForm } from '@/components/auth/AuthForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button'; // Added for Link consistency
 import { useToast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase/config';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -13,8 +13,8 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const { user, loading: authLoading } = useAuth();
+  const [formLoading, setFormLoading] = useState(false); // Renamed to avoid conflict with context's loading
+  const { user, loading: authLoading, signIn } = useAuth();
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -24,23 +24,26 @@ export default function LoginPage() {
 
 
   const handleLogin = async (values: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-    setLoading(true);
+    setFormLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      await signIn(values.email, values.password);
       toast({
         title: 'Logged in successfully!',
         description: "Welcome back!",
       });
-      router.push('/dashboard'); // Or redirect to a specific page
+      router.push('/dashboard'); 
     } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error('Login failed:', error);
+      const errorMessage = error.code === 'auth/invalid-credential' 
+        ? 'Invalid email or password. Please try again.'
+        : error.message || 'An unknown error occurred. Please try again.';
       toast({
         title: 'Login Failed',
-        description: error.message || 'An unknown error occurred. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
   
@@ -60,7 +63,7 @@ export default function LoginPage() {
           <CardDescription>Log in to continue to Barbermatch.</CardDescription>
         </CardHeader>
         <CardContent>
-          <AuthForm mode="login" onSubmit={handleLogin} loading={loading} />
+          <AuthForm mode="login" onSubmit={handleLogin} loading={formLoading} />
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Button variant="link" asChild className="p-0 h-auto">

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -13,28 +14,36 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
-import { auth } from '@/lib/firebase/config'; // Direct import for signOut
+// Removed direct auth import, logout is handled by context now
+// import { auth } from '@/lib/firebase/config'; 
+import { useToast } from '@/hooks/use-toast'; // For potential logout error messages
+
 
 const Navbar = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+  const { toast } = useToast();
 
   const handleLogout = async () => {
     try {
-      await auth.signOut();
-      // router.push('/'); // Redirect if needed, or let AuthContext handle it
-    } catch (error) {
+      await logout();
+      toast({ title: "Logged Out", description: "You have been successfully logged out."});
+      // router.push('/'); // Usually AuthContext handles redirect indirectly via user state change
+    } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error('Error signing out:', error);
-      // Handle error (e.g., show toast)
+      toast({ title: "Logout Failed", description: error.message || "Could not log out.", variant: "destructive"});
     }
   };
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
     const names = name.split(' ');
-    if (names.length > 1) {
+    if (names.length > 1 && names[0] && names[names.length - 1]) { // Added checks for names[0] and names[names.length-1]
       return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
-    return names[0][0].toUpperCase();
+    if (names[0]) { // Check if names[0] exists
+        return names[0][0].toUpperCase();
+    }
+    return 'U'; // Fallback if name is unusual
   };
 
   return (
@@ -49,14 +58,15 @@ const Navbar = () => {
           </Button>
           {loading ? (
             <div className="flex items-center gap-2">
-              <UserCircle className="h-6 w-6 text-muted-foreground animate-pulse" />
+              {/* Simplified loading state for navbar */}
+              <UserCircle className="h-8 w-8 text-muted-foreground animate-pulse" />
             </div>
           ) : user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                   <Avatar className="h-9 w-9">
-                    <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'User'} />
+                    <AvatarImage src={user.photoURL || ''} alt={user.displayName || 'User avatar'} />
                     <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -79,12 +89,18 @@ const Navbar = () => {
                 </DropdownMenuItem>
                 {user.role === 'barber' && (
                    <DropdownMenuItem asChild>
-                     <Link href="/dashboard/my-profile"> {/* Or a more specific barber profile edit page */}
+                     <Link href="/dashboard/my-profile">
                        <Briefcase className="mr-2 h-4 w-4" />
                        My Barber Profile
                      </Link>
                    </DropdownMenuItem>
                 )}
+                <DropdownMenuItem asChild>
+                   <Link href="/dashboard/account-settings">
+                    <UserCircle className="mr-2 h-4 w-4" /> 
+                    Account Settings
+                   </Link>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive-foreground focus:bg-destructive">
                   <LogOut className="mr-2 h-4 w-4" />

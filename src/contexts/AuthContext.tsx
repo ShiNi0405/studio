@@ -1,52 +1,82 @@
+
 'use client';
 
 import type { ReactNode } from 'react';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase/config';
-import type { AppUser } from '@/types';
-import { Skeleton } from '@/components/ui/skeleton'; // For loading state
+import { 
+  User as FirebaseUser,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut, // Renamed to avoid conflict
+  onAuthStateChanged,
+  updateProfile
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase/config'; // Corrected import path
+import { Skeleton } from '@/components/ui/skeleton';
+
+export type UserRole = 'customer' | 'barber';
+
+// Extend FirebaseUser with custom fields
+export interface AppUser extends FirebaseUser {
+  role?: UserRole;
+  // displayName is already part of FirebaseUser, but we ensure it's available
+  // photoURL is also part of FirebaseUser
+  // We can add other app-specific fields if needed directly here or in specific types
+  createdAt?: Timestamp; // Added from existing AppUser type
+  // Barber specific fields that might be part of the user object after fetch
+  bio?: string;
+  specialties?: string[];
+  experienceYears?: number;
+  availability?: string;
+  subscriptionActive?: boolean;
+}
+
 
 interface AuthContextType {
   user: AppUser | null;
-  firebaseUser: FirebaseUser | null;
   loading: boolean;
-  isAdmin: boolean; // Example, can be expanded
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, displayName: string, role: UserRole) => Promise<void>;
+  logout: () => Promise<void>;
+  // firebaseUser: FirebaseUser | null; // Removed as AppUser extends FirebaseUser
+  // isAdmin: boolean; // Removed as it was a placeholder
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false); // Placeholder for admin logic
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      setFirebaseUser(fbUser);
-      if (fbUser) {
-        try {
-          const userDocRef = doc(db, 'users', fbUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const appUserData = userDocSnap.data() as AppUser;
-            setUser({ ...appUserData, uid: fbUser.uid }); // Ensure uid is from fbUser
-             // Example: Check for admin role
-            // setIsAdmin(appUserData.role === 'admin'); 
-          } else {
-            // This case might happen if user exists in Auth but not Firestore
-            // Or during signup process before Firestore doc is created
-            setUser(null); 
-          }
-        } catch (error) {
-          console.error("Error fetching user data from Firestore:", error);
-          setUser(null);
+    if (!auth || !db) {
+      // Firebase services might not be initialized yet, especially on server.
+      // This can happen if the firebase/config.ts initialization is guarded by `typeof window !== 'undefined'`
+      // and this context is somehow trying to run/initialize server-side before client-side hydration
+      // where `auth` or `db` would be undefined.
+      // console.warn("AuthContext: Firebase auth or db not initialized. This might be normal during SSR pre-render.");
+      setLoading(false); // Avoid infinite loading if Firebase isn't ready server-side
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists()) {
+          const appUserData = userDocSnap.data() as AppUser; // Cast to include custom fields
+          setUser({
+            ...firebaseUser, // Base Firebase user properties (uid, email, photoURL, etc.)
+            ...appUserData,   // Custom fields from Firestore (role, displayName from Firestore, etc.)
+          });
+        } else {
+          // This case might occur if a user exists in Firebase Auth but not in Firestore (e.g., incomplete signup)
+          // Or if it's a new user whose Firestore document hasn't been created yet by the signUp function.
+          // We set the basic Firebase user and role/displayName might be undefined until Firestore doc is synced.
+          setUser(firebaseUser as AppUser); 
         }
       } else {
         setUser(null);
-        setIsAdmin(false);
       }
       setLoading(false);
     });
@@ -54,8 +84,52 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  if (loading) {
-    // Basic full-page skeleton loader
+  const signUp = async (email: string, password: string, displayName: string, role: UserRole) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const firebaseUser = userCredential.user;
+
+    await updateProfile(firebaseUser, {
+      displayName: displayName,
+    });
+    
+    const userDocData: any = { // eslint-disable-line @typescript-eslint/no-explicit-any
+      uid: firebaseUser.uid,
+      email: firebaseUser.email,
+      displayName: displayName,
+      role: role,
+      createdAt: serverTimestamp(),
+      photoURL: firebaseUser.photoURL, // Save initial photoURL if any
+    };
+
+    if (role === 'barber') {
+      userDocData.availability = JSON.stringify({}); // Default empty availability
+      userDocData.subscriptionActive = false;
+      userDocData.bio = "";
+      userDocData.specialties = [];
+      userDocData.experienceYears = 0;
+    }
+
+    await setDoc(doc(db, 'users', firebaseUser.uid), userDocData);
+    
+    // Update local user state with the combined info
+    setUser({
+      ...firebaseUser, // from auth
+      ...userDocData,  // from what we just wrote to firestore (excluding serverTimestamp)
+      createdAt: new Timestamp(new Date().getTime()/1000, 0) // Approximate client-side timestamp for immediate UI update
+    });
+  };
+
+  const signIn = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password);
+    // onAuthStateChanged will handle setting the user state
+  };
+
+  const logout = async () => {
+    await firebaseSignOut(auth);
+    setUser(null);
+  };
+  
+  if (loading && typeof window !== 'undefined') { // Added typeof window check for safety
     return (
       <div className="flex flex-col min-h-screen">
         <header className="bg-card border-b p-4">
@@ -71,8 +145,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     );
   }
 
+
   return (
-    <AuthContext.Provider value={{ user, firebaseUser, loading, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, logout }}>
       {children}
     </AuthContext.Provider>
   );

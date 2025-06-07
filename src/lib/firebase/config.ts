@@ -1,85 +1,73 @@
 
 // src/lib/firebase/config.ts
 import { initializeApp, getApps, FirebaseApp } from "firebase/app";
+import { getAnalytics, Analytics } from "firebase/analytics";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 
-const configValues = {
+const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-const placeholderValues = {
-  apiKey: "YOUR_FIREBASE_API_KEY_HERE",
-  authDomain: "YOUR_FIREBASE_AUTH_DOMAIN_HERE",
-  projectId: "YOUR_FIREBASE_PROJECT_ID_HERE",
-  storageBucket: "YOUR_FIREBASE_STORAGE_BUCKET_HERE",
-  messagingSenderId: "YOUR_FIREBASE_MESSAGING_SENDER_ID_HERE",
-  appId: "YOUR_FIREBASE_APP_ID_HERE",
-};
-
-const envVarNames: Record<keyof typeof placeholderValues, string> = {
-  apiKey: "NEXT_PUBLIC_FIREBASE_API_KEY",
-  authDomain: "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
-  projectId: "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
-  storageBucket: "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
-  messagingSenderId: "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-  appId: "NEXT_PUBLIC_FIREBASE_APP_ID",
-};
-
-let configIssue = "";
-
-for (const key in configValues) {
-  const K = key as keyof typeof configValues;
-  const envVarName = envVarNames[K];
-  if (!configValues[K]) {
-    configIssue = `Firebase config error: Environment variable '${envVarName}' for '${K}' is missing. Please ensure it's set in your .env file in the project root.`;
-    break;
-  }
-  if (configValues[K] === placeholderValues[K]) {
-    configIssue = `Firebase config error: Environment variable '${envVarName}' for '${K}' is using a placeholder value ('${placeholderValues[K]}'). Please replace it with your actual Firebase project credential in your .env file in the project root.`;
-    break;
-  }
-}
-
-if (configIssue) {
-  const fullErrorMessage = `CRITICAL CONFIGURATION ERROR: ${configIssue} The application cannot start without valid Firebase credentials. You can find these credentials in your Firebase project settings.`;
-  console.error("Detailed Firebase Config Error:", configIssue);
-  throw new Error(fullErrorMessage);
-}
-
-const firebaseConfig = {
-  apiKey: configValues.apiKey!,
-  authDomain: configValues.authDomain!,
-  projectId: configValues.projectId!,
-  storageBucket: configValues.storageBucket!,
-  messagingSenderId: configValues.messagingSenderId!,
-  appId: configValues.appId!,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 let app: FirebaseApp;
+let analytics: Analytics | undefined = undefined; // Initialize as undefined
 let auth: Auth;
 let db: Firestore;
 
 // Initialize Firebase
-if (getApps().length === 0) {
+// Check if we are in the browser and if no apps are initialized
+if (typeof window !== 'undefined' && !getApps().length) {
   try {
     app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    if (firebaseConfig.measurementId) {
+      analytics = getAnalytics(app);
+    }
   } catch (error) {
-    console.error("Firebase initialization failed with provided config:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Firebase initialization failed. Original error: ${errorMessage}. This usually indicates an issue with the Firebase config values, even if they are not placeholders (e.g., a typo in a real key, or the key is for a different project). Please double-check your credentials in your .env file and in your Firebase project settings.`);
+    console.error("Firebase initialization failed:", error);
+    // Optionally, throw a more specific error or handle it
+  }
+} else if (getApps().length > 0) {
+  // If already initialized (e.g., on subsequent renders or in HMR), get the existing app
+  app = getApps()[0];
+  auth = getAuth(app);
+  db = getFirestore(app);
+  if (firebaseConfig.measurementId && typeof window !== 'undefined') {
+    // Ensure analytics is only initialized on client side and if measurementId is present
+    try {
+        analytics = getAnalytics(app);
+    } catch (e) {
+        // console.warn("Firebase Analytics could not be initialized:", e);
+    }
   }
 } else {
-  app = getApps()[0];
+  // Fallback for server-side rendering where window is not defined,
+  // but we still need auth and db for some server-side operations (e.g. AuthProvider initial check).
+  // This might lead to errors if Firebase services are used extensively server-side without proper guards.
+  // Consider Firebase Admin SDK for backend operations.
+  // For client-side focused apps, the check above is primary.
+  // This block is a safeguard but might not be fully robust for all SSR Firebase uses.
+  if (!getApps().length) {
+     try {
+      app = initializeApp(firebaseConfig);
+     } catch (e) {
+        // console.error("SSR Firebase app init fallback failed", e)
+     }
+  } else {
+      app = getApps()[0];
+  }
+  // @ts-ignore
+  auth = getAuth(app);
+  // @ts-ignore
+  db = getFirestore(app);
 }
 
-auth = getAuth(app);
-db = getFirestore(app);
 
-export { app, auth, db };
-
+export { app, auth, db, analytics };
