@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase/config';
 import type { Barber } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -87,10 +87,12 @@ const AvailabilityCard = ({ barberId, availabilityString }: { barberId: string, 
   );
 };
 
-
-export default function BarberProfilePage() {
+function BarberProfilePageContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const barberId = params.barberId as string;
+  const suggestedStyle = searchParams.get('style');
+
   const [barber, setBarber] = useState<Barber | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +141,10 @@ export default function BarberProfilePage() {
   if (!barber) {
     return null; 
   }
+
+  const bookLink = suggestedStyle 
+    ? `/barbers/${barber.uid}/book?style=${encodeURIComponent(suggestedStyle)}`
+    : `/barbers/${barber.uid}/book`;
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -190,7 +196,7 @@ export default function BarberProfilePage() {
             )}
                         
             <Button size="lg" asChild className="w-full md:w-auto mt-4 transition-all-subtle hover:scale-105">
-              <Link href={`/barbers/${barber.uid}/book`}>Book Appointment</Link>
+              <Link href={bookLink}>Book Appointment {suggestedStyle && `for ${suggestedStyle}`}</Link>
             </Button>
           </div>
         </div>
@@ -204,6 +210,16 @@ export default function BarberProfilePage() {
     </div>
   );
 }
+
+
+export default function BarberProfilePage() {
+  return (
+    <Suspense fallback={<ProfileSkeleton/>}>
+      <BarberProfilePageContent />
+    </Suspense>
+  );
+}
+
 
 const ProfileSkeleton = () => (
   <div className="max-w-5xl mx-auto space-y-8">
@@ -229,4 +245,3 @@ const ProfileSkeleton = () => (
     </div>
   </div>
 );
-

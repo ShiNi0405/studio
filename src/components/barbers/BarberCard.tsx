@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Barber } from '@/types';
@@ -8,12 +9,16 @@ import { Badge } from '@/components/ui/badge';
 
 type BarberCardProps = {
   barber: Barber;
+  suggestedStyle?: string | null;
 };
 
-export default function BarberCard({ barber }: BarberCardProps) {
-  // Placeholder for average rating - this would typically come from aggregated reviews
+export default function BarberCard({ barber, suggestedStyle }: BarberCardProps) {
   const averageRating = 4.5; 
-  const reviewCount = 23; // Placeholder
+  const reviewCount = 23; 
+
+  const profileLink = suggestedStyle 
+    ? `/barbers/${barber.uid}?style=${encodeURIComponent(suggestedStyle)}`
+    : `/barbers/${barber.uid}`;
 
   return (
     <Card className="flex flex-col overflow-hidden transition-all-subtle hover:shadow-xl h-full">
@@ -29,17 +34,10 @@ export default function BarberCard({ barber }: BarberCardProps) {
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <CardTitle className="text-xl font-headline mb-1 truncate">{barber.displayName}</CardTitle>
-        {/* Example: Displaying first specialty or a general title */}
         <CardDescription className="text-sm text-primary mb-2 flex items-center">
            <Scissors className="h-4 w-4 mr-1.5" /> {barber.specialties && barber.specialties.length > 0 ? barber.specialties[0] : 'Professional Barber'}
         </CardDescription>
         
-        {/* Placeholder for location */}
-        {/* <div className="flex items-center text-xs text-muted-foreground mb-2">
-          <MapPin className="h-3 w-3 mr-1" />
-          {barber.location || "City, State"}
-        </div> */}
-
         <div className="flex items-center text-xs text-muted-foreground mb-3">
           <Star className="h-4 w-4 mr-1 text-yellow-400 fill-yellow-400" />
           <span>{averageRating.toFixed(1)} ({reviewCount} reviews)</span>
@@ -60,7 +58,7 @@ export default function BarberCard({ barber }: BarberCardProps) {
       </CardContent>
       <CardFooter className="p-4 pt-0">
         <Button asChild className="w-full transition-all-subtle">
-          <Link href={`/barbers/${barber.uid}`}>View Profile & Book</Link>
+          <Link href={profileLink}>View Profile & Book</Link>
         </Button>
       </CardFooter>
     </Card>

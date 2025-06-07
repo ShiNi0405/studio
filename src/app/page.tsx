@@ -3,7 +3,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Search } from 'lucide-react';
+import { ArrowRight, Search, SparklesIcon } from 'lucide-react';
 
 export default function HomePage() {
   return (
@@ -18,17 +18,19 @@ export default function HomePage() {
         </p>
       </header>
 
-      <section className="w-full max-w-md">
+      <section className="w-full max-w-lg grid grid-cols-1 md:grid-cols-2 gap-4">
         <Button size="lg" className="w-full text-lg py-8" asChild>
           <Link href="/barbers">
             <Search className="mr-3 h-6 w-6" />
-            Find Your Barber
-            <ArrowRight className="ml-3 h-6 w-6" />
+            Find a Barber
           </Link>
         </Button>
-        <p className="mt-3 text-sm text-muted-foreground">
-          Browse profiles, check availability, and book online.
-        </p>
+        <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
+          <Link href="/hairstyle-suggestion">
+            <SparklesIcon className="mr-3 h-6 w-6" />
+            AI Hairstyle Suggestion
+          </Link>
+        </Button>
       </section>
 
       <section className="grid md:grid-cols-3 gap-8 w-full max-w-5xl pt-10">
@@ -69,7 +71,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Get smart time slot suggestions based on barber availability and your preferences.
+              Get smart hairstyle suggestions based on your face shape and style preferences.
             </CardDescription>
           </CardContent>
         </Card>

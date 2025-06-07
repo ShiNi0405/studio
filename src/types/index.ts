@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'customer' | 'barber';
@@ -43,12 +44,13 @@ export interface Booking {
   customerName: string;
   barberId: string;
   barberName: string;
-  dateTime: Timestamp; // Chosen date and time
-  service?: string; // e.g., "Haircut"
+  dateTime: Timestamp; // Chosen date (time part will be set by barber or be start of day)
+  service?: string; // Original service selected, might be overridden by style
+  style?: string; // Suggested style from AI or manually entered
+  time?: string; // Specific time chosen by user, e.g., "15:00"
   notes?: string;
   status: BookingStatus;
   createdAt: Timestamp;
-  preferredTimeOfDay?: string; // For AI suggestion history
 }
 
 export interface Review {
