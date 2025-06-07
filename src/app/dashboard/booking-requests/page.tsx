@@ -49,9 +49,9 @@ export default function BookingRequestsPage() {
       const querySnapshot = await getDocs(q);
       const fetchedBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
       setBookings(fetchedBookings);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error fetching booking requests:", err);
-      setError("Failed to load booking requests. Please try again later.");
+      setError("Failed to load booking requests. Please check the browser's developer console for more specific error messages (e.g., regarding missing Firestore indexes).");
     } finally {
       setLoading(false);
     }
@@ -86,7 +86,7 @@ export default function BookingRequestsPage() {
      return (
       <div className="text-center py-10">
         <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
-        <p className="text-xl text-destructive">{error}</p>
+        <p className="text-xl text-destructive px-4">{error}</p>
         <Button asChild variant="link" className="mt-4">
           <Link href="/dashboard">
             <ChevronLeft className="mr-2 h-4 w-4" /> Back to Dashboard
