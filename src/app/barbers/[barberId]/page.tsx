@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,17 +7,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { db } from '@/lib/firebase/config';
-import type { Barber, Review as ReviewType } from '@/types'; // Assuming Review type is also in types
+import type { Barber } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CalendarCheck, ChevronLeft, MapPin, Scissors, Star, Users } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, MapPin, Scissors, Star, Users, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-// Placeholder components - these would be actual implementations
-// import ReviewList from '@/components/reviews/ReviewList'; 
-// import AvailabilityCalendar from '@/components/barbers/AvailabilityCalendar';
 
-// Placeholder ReviewList
 const ReviewList = ({ barberId }: { barberId: string }) => (
   <Card>
     <CardHeader>
@@ -24,7 +21,6 @@ const ReviewList = ({ barberId }: { barberId: string }) => (
     </CardHeader>
     <CardContent>
       <p className="text-muted-foreground">Reviews for this barber will appear here.</p>
-      {/* Example review item structure */}
       <div className="mt-4 border-t pt-4">
         <div className="flex items-center mb-1">
           {[...Array(5)].map((_, i) => (
@@ -39,28 +35,55 @@ const ReviewList = ({ barberId }: { barberId: string }) => (
   </Card>
 );
 
-// Placeholder AvailabilityCalendar
-const AvailabilityCalendar = ({ barberId, availabilityString }: { barberId: string, availabilityString?: string }) => {
-  let availability = {};
+const AvailabilityDisplay = ({ availabilityString }: { availabilityString?: string }) => {
+  let availability: Record<string, string[]> = {};
+  const daysOrder = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
   try {
-    if (availabilityString) availability = JSON.parse(availabilityString);
-  } catch (e) { console.error("Failed to parse availability", e); }
+    if (availabilityString) {
+      availability = JSON.parse(availabilityString);
+    }
+  } catch (e) {
+    console.error("Failed to parse availability JSON:", e);
+    return <p className="text-destructive">Error displaying availability.</p>;
+  }
+
+  const availableDays = daysOrder.filter(day => availability[day] && availability[day].length > 0);
+
+  if (availableDays.length === 0) {
+    return <p className="text-muted-foreground">Availability not set or currently unavailable.</p>;
+  }
 
   return (
-  <Card>
-    <CardHeader>
-      <CardTitle className="flex items-center"><CalendarCheck className="w-5 h-5 mr-2 text-primary"/>Availability</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <p className="text-muted-foreground">Barber&apos;s schedule will be displayed here.</p>
-      {/* Example: Displaying raw availability if present */}
-      {Object.keys(availability).length > 0 && (
-        <pre className="mt-2 text-xs bg-muted p-2 rounded overflow-x-auto">
-          {JSON.stringify(availability, null, 2)}
-        </pre>
-      )}
-    </CardContent>
-  </Card>
+    <div className="space-y-3">
+      {availableDays.map(day => (
+        <div key={day} className="p-3 bg-muted/50 rounded-md">
+          <h4 className="font-semibold capitalize text-primary">{day}</h4>
+          <ul className="list-disc list-inside pl-1 space-y-1 mt-1">
+            {availability[day].map((slot, index) => (
+              <li key={index} className="text-sm text-foreground/90 flex items-center">
+                <Clock className="w-3.5 h-3.5 mr-2 text-muted-foreground" /> {slot}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+
+const AvailabilityCard = ({ barberId, availabilityString }: { barberId: string, availabilityString?: string }) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center"><CalendarCheck className="w-5 h-5 mr-2 text-primary"/>Availability</CardTitle>
+        <CardDescription>General weekly availability. Specific dates/times can be confirmed during booking.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <AvailabilityDisplay availabilityString={availabilityString} />
+      </CardContent>
+    </Card>
   );
 };
 
@@ -114,7 +137,7 @@ export default function BarberProfilePage() {
   }
 
   if (!barber) {
-    return null; // Should be covered by error state
+    return null; 
   }
 
   return (
@@ -129,27 +152,29 @@ export default function BarberProfilePage() {
         <div className="md:flex">
           <div className="md:w-1/3 relative">
             <Image
-              src={barber.photoURL || `https://placehold.co/400x400.png?text=${encodeURIComponent(barber.displayName || 'B')}`}
+              src={barber.photoURL || `https://placehold.co/400x400.png?text=${encodeURIComponent(barber.displayName?.[0] || 'B')}`}
               alt={barber.displayName || 'Barber'}
               data-ai-hint="barber professional"
               width={400}
               height={400}
               className="object-cover w-full h-64 md:h-full"
+              priority
             />
-             {/* Placeholder for online status indicator */}
-            {/* <Badge className="absolute top-4 right-4 bg-green-500 text-white">Online</Badge> */}
           </div>
           <div className="md:w-2/3 p-6 md:p-8">
             <h1 className="text-4xl font-headline font-bold text-primary mb-2">{barber.displayName}</h1>
             <div className="flex items-center text-yellow-500 mb-4">
               {[...Array(5)].map((_, i) => (
-                <Star key={i} className={`w-5 h-5 ${i < 4 ? 'fill-current' : ''}`} /> /* Assuming 4.x stars */
+                <Star key={i} className={`w-5 h-5 ${i < 4 ? 'fill-current' : ''}`} /> 
               ))}
               <span className="ml-2 text-sm text-muted-foreground">(4.7 from 120 reviews)</span> {/* Placeholder */}
             </div>
             
-            {/* <p className="text-muted-foreground flex items-center mb-1"><MapPin className="w-4 h-4 mr-2"/> {barber.location || "City, State"}</p> */}
-            <p className="text-muted-foreground flex items-center mb-4"><Users className="w-4 h-4 mr-2"/> Member since {barber.createdAt ? new Date(barber.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+            <p className="text-muted-foreground flex items-center mb-1"><Users className="w-4 h-4 mr-2"/> Member since {barber.createdAt ? new Date(barber.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
+            {barber.experienceYears !== undefined && (
+                <p className="text-muted-foreground flex items-center mb-4"><CalendarCheck className="w-4 h-4 mr-2"/> {barber.experienceYears} years of experience</p>
+            )}
+            
 
             <p className="text-foreground/80 mb-6">{barber.bio || "Dedicated to crafting the perfect look for every client. With years of experience and a passion for precision, I offer a range of services to meet your grooming needs."}</p>
             
@@ -163,11 +188,7 @@ export default function BarberProfilePage() {
                 </div>
               </div>
             )}
-            
-            {barber.experienceYears !== undefined && (
-                <p className="text-sm text-muted-foreground mb-1"><strong>Experience:</strong> {barber.experienceYears} years</p>
-            )}
-            
+                        
             <Button size="lg" asChild className="w-full md:w-auto mt-4 transition-all-subtle hover:scale-105">
               <Link href={`/barbers/${barber.uid}/book`}>Book Appointment</Link>
             </Button>
@@ -176,7 +197,7 @@ export default function BarberProfilePage() {
       </Card>
       
       <div className="grid md:grid-cols-2 gap-8">
-        <AvailabilityCalendar barberId={barber.uid} availabilityString={barber.availability} />
+        <AvailabilityCard barberId={barber.uid} availabilityString={barber.availability} />
         <ReviewList barberId={barber.uid} />
       </div>
 
@@ -196,14 +217,16 @@ const ProfileSkeleton = () => (
           <Skeleton className="h-10 w-3/4" />
           <Skeleton className="h-6 w-1/2" />
           <Skeleton className="h-5 w-1/3" />
+          <Skeleton className="h-5 w-1/4" />
           <Skeleton className="h-20 w-full" />
           <Skeleton className="h-12 w-full md:w-1/2" />
         </div>
       </div>
     </Card>
     <div className="grid md:grid-cols-2 gap-8">
-      <Card><CardContent className="p-6 space-y-3"><Skeleton className="h-8 w-1/2"/><Skeleton className="h-40 w-full"/></CardContent></Card>
-      <Card><CardContent className="p-6 space-y-3"><Skeleton className="h-8 w-1/2"/><Skeleton className="h-40 w-full"/></CardContent></Card>
+      <Card><CardHeader><Skeleton className="h-8 w-1/2 mb-2"/><Skeleton className="h-4 w-3/4"/></CardHeader><CardContent className="p-6 space-y-3"><Skeleton className="h-24 w-full"/></CardContent></Card>
+      <Card><CardHeader><Skeleton className="h-8 w-1/2 mb-2"/></CardHeader><CardContent className="p-6 space-y-3"><Skeleton className="h-24 w-full"/></CardContent></Card>
     </div>
   </div>
 );
+
