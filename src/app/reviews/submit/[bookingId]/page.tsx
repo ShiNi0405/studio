@@ -2,9 +2,9 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { doc, getDoc, serverTimestamp, setDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, addDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore'; // Removed setDoc as addDoc is used
 import { db } from '@/lib/firebase/config';
-import type { Booking, Barber } from '@/types';
+import type { Booking, Barber, Review } from '@/types'; // Added Review type
 import { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import Link from 'next/link';
 import { ChevronLeft, Loader2, AlertCircle, Star, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils'; // Added for cn utility
+import { cn } from '@/lib/utils'; 
 
 const reviewSchema = z.object({
   rating: z.coerce.number().min(1, "Rating is required").max(5, "Rating cannot exceed 5"),
@@ -126,14 +126,14 @@ function SubmitReviewPageContent() {
 
     setIsSubmitting(true);
     try {
-      const reviewData = {
+      const reviewData: Omit<Review, 'id'> = { // Omit 'id' as Firestore generates it
         bookingId: booking.id,
         customerId: user.uid,
         customerName: user.displayName || "Anonymous",
         barberId: booking.barberId,
         rating: values.rating,
         comment: values.comment,
-        createdAt: serverTimestamp(),
+        createdAt: serverTimestamp() as Timestamp,
       };
       await addDoc(collection(db, 'reviews'), reviewData);
       toast({ title: "Review Submitted!", description: "Thank you for your feedback." });
@@ -181,7 +181,7 @@ function SubmitReviewPageContent() {
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="text-3xl font-headline">Leave a Review</CardTitle>
-          <CardDescription>Share your experience with <span className="font-semibold text-primary">{barber.displayName}</span> for your appointment on {booking.dateTime ? new Date((booking.dateTime as any).seconds * 1000).toLocaleDateString() : 'N/A'}.</CardDescription>
+          <CardDescription>Share your experience with <span className="font-semibold text-primary">{barber.displayName}</span> for your appointment on {booking.appointmentDateTime ? new Date((booking.appointmentDateTime as any).seconds * 1000).toLocaleDateString() : 'N/A'}.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,7 +23,6 @@ export default function MyBookingsPage() {
     if (!authLoading && user && user.role === 'customer') {
       fetchBookings();
     } else if (!authLoading && !user) {
-      // Handle case where user is not logged in, though AuthProvider should ideally redirect
       setLoading(false);
       setError("Please log in to view your bookings.");
     } else if (!authLoading && user && user.role !== 'customer') {
@@ -40,7 +40,7 @@ export default function MyBookingsPage() {
       const q = query(
         collection(db, 'bookings'),
         where('customerId', '==', user.uid),
-        orderBy('dateTime', 'desc')
+        orderBy('appointmentDateTime', 'desc') // Use appointmentDateTime for sorting
       );
       const querySnapshot = await getDocs(q);
       const fetchedBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
@@ -55,9 +55,9 @@ export default function MyBookingsPage() {
 
   const getStatusBadgeVariant = (status: Booking['status']): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
-      case 'confirmed': return 'default'; // Primary color for confirmed
+      case 'confirmed': return 'default';
       case 'pending': return 'secondary';
-      case 'completed': return 'outline'; // Success-like, but outline
+      case 'completed': return 'outline';
       case 'cancelled_by_customer':
       case 'cancelled_by_barber':
       case 'rejected':
@@ -69,7 +69,7 @@ export default function MyBookingsPage() {
   const getStatusIcon = (status: Booking['status']) => {
      switch (status) {
       case 'confirmed': return <CalendarCheck className="h-4 w-4 text-primary" />;
-      case 'pending': return <RefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />; // Or Clock
+      case 'pending': return <RefreshCw className="h-4 w-4 text-muted-foreground animate-spin" />;
       case 'completed': return <CheckCircle className="h-4 w-4 text-green-600" />;
       case 'cancelled_by_customer':
       case 'cancelled_by_barber':
@@ -131,7 +131,7 @@ export default function MyBookingsPage() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="text-xl">{booking.service || "Appointment"}</CardTitle>
+                        <CardTitle className="text-xl">{booking.style || booking.service || "Appointment"}</CardTitle>
                         <CardDescription>with {booking.barberName}</CardDescription>
                     </div>
                      <Badge variant={getStatusBadgeVariant(booking.status)} className="capitalize whitespace-nowrap">
@@ -142,7 +142,7 @@ export default function MyBookingsPage() {
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-sm text-foreground">
-                  <strong>Date:</strong> {format(new Date((booking.dateTime as unknown as Timestamp).seconds * 1000), 'PPP p')}
+                  <strong>Date & Time:</strong> {booking.appointmentDateTime ? format(new Date((booking.appointmentDateTime as unknown as Timestamp).seconds * 1000), 'PPP p') : 'N/A'}
                 </p>
                 {booking.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2"><strong>Notes:</strong> {booking.notes}</p>}
               </CardContent>
@@ -155,9 +155,8 @@ export default function MyBookingsPage() {
                     </Link>
                   </Button>
                 )}
-                {/* Add cancel button for pending/confirmed if needed */}
                  {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                   <Button variant="destructive" size="sm" className="ml-auto" /* onClick={() => handleCancelBooking(booking.id)} */ >
+                   <Button variant="destructive" size="sm" className="ml-auto" disabled> {/* onClick={() => handleCancelBooking(booking.id)} */}
                      Cancel (Not Implemented)
                    </Button>
                  )}

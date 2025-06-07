@@ -23,9 +23,9 @@ export interface Barber extends BaseUser {
   experienceYears?: number;
   availability?: string; // JSON string: {"monday": ["09:00-12:00", "14:00-18:00"], ...}
   subscriptionActive?: boolean;
-  // Additional profile fields
-  // location?: string;
-  // portfolioImages?: string[];
+  portfolioImageURLs?: string[]; // Added for portfolio
+  // averageRating?: number; // Could be added for optimization later
+  // reviewCount?: number; // Could be added for optimization later
 }
 
 export type AppUser = Customer | Barber;
@@ -44,13 +44,17 @@ export interface Booking {
   customerName: string;
   barberId: string;
   barberName: string;
-  dateTime: Timestamp; // Chosen date (time part will be set by barber or be start of day)
-  service?: string; // Original service selected, might be overridden by style
-  style?: string; // Suggested style from AI or manually entered
-  time?: string; // Specific time chosen by user, e.g., "15:00"
+  /** The full date and time of the appointment, stored as a Firestore Timestamp. */
+  appointmentDateTime: Timestamp; 
+  /** The specific time chosen by user (e.g., "15:00"), primarily for display or simple filtering. */
+  time: string; 
+  service?: string; 
+  style?: string;   
   notes?: string;
   status: BookingStatus;
   createdAt: Timestamp;
+  // Deprecating 'dateTime' in favor of 'appointmentDateTime' for clarity
+  // dateTime?: Timestamp; // Old field, prefer appointmentDateTime
 }
 
 export interface Review {

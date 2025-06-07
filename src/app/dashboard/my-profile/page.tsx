@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
@@ -5,10 +6,10 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import type { Barber } from '@/types';
 import { useEffect, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,13 +17,13 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import Link from 'next/link';
-import { ChevronLeft, Loader2, AlertCircle, Save } from 'lucide-react';
+import { ChevronLeft, Loader2, AlertCircle, Save, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'Display name must be at least 2 characters.'),
   bio: z.string().max(500, 'Bio cannot exceed 500 characters.').optional(),
-  specialties: z.string().optional().transform(val => val ? val.split(',').map(s => s.trim()).filter(s => s) : []), // Comma-separated string to array
+  specialties: z.string().optional().transform(val => val ? val.split(',').map(s => s.trim()).filter(s => s) : []),
   experienceYears: z.coerce.number().min(0, 'Experience cannot be negative.').optional(),
   availability: z.string().optional().refine(val => {
     if (!val) return true;
@@ -33,8 +34,9 @@ const profileSchema = z.object({
       return false;
     }
   }, { message: "Availability must be a valid JSON string."}),
-  subscriptionActive: z.boolean().optional(), // This might be managed elsewhere
-  photoURL: z.string().url("Must be a valid URL.").optional().or(z.literal('')),
+  subscriptionActive: z.boolean().optional(),
+  photoURL: z.string().url("Must be a valid URL for profile picture.").optional().or(z.literal('')),
+  portfolioImageURLs: z.array(z.object({ url: z.string().url("Each portfolio image must be a valid URL.") })).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -56,7 +58,13 @@ export default function MyProfilePage() {
       availability: '{}',
       subscriptionActive: false,
       photoURL: '',
+      portfolioImageURLs: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "portfolioImageURLs"
   });
 
   useEffect(() => {
@@ -89,6 +97,7 @@ export default function MyProfilePage() {
           availability: data.availability || '{}',
           subscriptionActive: data.subscriptionActive || false,
           photoURL: data.photoURL || '',
+          portfolioImageURLs: data.portfolioImageURLs ? data.portfolioImageURLs.map(url => ({ url })) : [],
         });
       } else {
         setError("Profile data not found.");
@@ -106,14 +115,18 @@ export default function MyProfilePage() {
     setIsSubmitting(true);
     try {
       const userDocRef = doc(db, 'users', user.uid);
-      // Filter out undefined values before updating
-      const updateData = Object.fromEntries(Object.entries(values).filter(([_, v]) => v !== undefined));
       
-      await updateDoc(userDocRef, {
-        ...updateData,
-        // Ensure specialties is stored as an array
-        specialties: Array.isArray(values.specialties) ? values.specialties : [], 
-      });
+      const updateData: Partial<Barber> = {
+        displayName: values.displayName,
+        bio: values.bio,
+        specialties: Array.isArray(values.specialties) ? values.specialties : [],
+        experienceYears: values.experienceYears,
+        availability: values.availability,
+        photoURL: values.photoURL,
+        portfolioImageURLs: values.portfolioImageURLs ? values.portfolioImageURLs.map(item => item.url) : [],
+      };
+      
+      await updateDoc(userDocRef, updateData);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
     } catch (err) {
       console.error("Error updating profile:", err);
@@ -234,25 +247,44 @@ export default function MyProfilePage() {
                   </FormItem>
                 )}
               />
-              {/* Subscription status might be managed elsewhere by an admin or payment system */}
-              {/* <FormField
-                control={form.control}
-                name="subscriptionActive"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Subscription Active</FormLabel>
-                      <FormDescription>
-                        Indicates if your subscription is current. (Typically admin controlled)
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} disabled />
-                    </FormControl>
-                  </FormItem>
-                )}
-              /> */}
-              <div className="flex justify-end space-x-3 pt-4">
+
+              <div className="space-y-4">
+                <FormLabel>Portfolio Image URLs</FormLabel>
+                {fields.map((item, index) => (
+                  <FormField
+                    key={item.id}
+                    control={form.control}
+                    name={`portfolioImageURLs.${index}.url`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center gap-2">
+                          <FormControl>
+                            <Input type="url" placeholder="https://example.com/portfolio_image.png" {...field} />
+                          </FormControl>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:text-destructive/80">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append({ url: "" })}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Portfolio Image URL
+                </Button>
+                 <FormDescription>
+                  Add direct URLs to your portfolio images. Actual file uploads can be added in a future update.
+                </FormDescription>
+              </div>
+              
+              <CardFooter className="flex justify-end space-x-3 pt-6 px-0 border-t">
                 <Button variant="outline" asChild type="button">
                     <Link href="/dashboard"><ChevronLeft className="mr-2 h-4 w-4" />Cancel</Link>
                 </Button>
@@ -260,7 +292,7 @@ export default function MyProfilePage() {
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   <Save className="mr-2 h-4 w-4" /> Save Changes
                 </Button>
-              </div>
+              </CardFooter>
             </form>
           </Form>
         </CardContent>

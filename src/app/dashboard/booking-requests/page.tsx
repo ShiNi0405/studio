@@ -43,8 +43,8 @@ export default function BookingRequestsPage() {
       const q = query(
         collection(db, 'bookings'),
         where('barberId', '==', user.uid),
-        where('status', 'in', ['pending', 'confirmed']), // Show pending and confirmed
-        orderBy('dateTime', 'asc')
+        where('status', 'in', ['pending', 'confirmed']), 
+        orderBy('appointmentDateTime', 'asc') // Use appointmentDateTime for sorting
       );
       const querySnapshot = await getDocs(q);
       const fetchedBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
@@ -63,7 +63,7 @@ export default function BookingRequestsPage() {
       const bookingRef = doc(db, 'bookings', bookingId);
       await updateDoc(bookingRef, { status: newStatus });
       toast({ title: "Booking Updated", description: `Booking status changed to ${newStatus}.`});
-      fetchBookingRequests(); // Refresh list
+      fetchBookingRequests(); 
     } catch (err) {
       console.error("Error updating booking status:", err);
       toast({ title: "Update Failed", description: "Could not update booking status.", variant: "destructive" });
@@ -123,15 +123,8 @@ export default function BookingRequestsPage() {
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-sm text-foreground">
-                  <strong>Date & Time:</strong> {booking.dateTime ? format(new Date((booking.dateTime as unknown as Timestamp).seconds * 1000), 'PPP p') : 'N/A'}
+                  <strong>Date & Time:</strong> {booking.appointmentDateTime ? format(new Date((booking.appointmentDateTime as unknown as Timestamp).seconds * 1000), 'PPP p') : 'N/A'}
                 </p>
-                {/* 
-                  The Firestore data you provided had `preferredTimeOfDay`. 
-                  However, the current BookingForm collects a specific HH:MM time which is incorporated into `booking.dateTime`.
-                  If `preferredTimeOfDay` is indeed being saved and needed for display, ensure it's in the `Booking` type 
-                  and that the `createBookingAction` saves it. Then uncomment and use below:
-                  {booking.preferredTimeOfDay && <p className="text-sm text-muted-foreground mt-1"><strong>Preferred:</strong> {booking.preferredTimeOfDay}</p>}
-                */}
                 {booking.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2"><strong>Notes:</strong> {booking.notes}</p>}
                 <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'} className="mt-3 capitalize">{booking.status}</Badge>
               </CardContent>
