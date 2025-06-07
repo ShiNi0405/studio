@@ -6,44 +6,55 @@ import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firesto
 import { db } from '@/lib/firebase/config';
 import type { BookingStatus } from '@/types';
 
+// This interface defines the structure of data expected by createBookingAction
 interface CreateBookingData {
   customerId: string;
   customerName: string;
   barberId: string;
   barberName: string;
-  dateTime: Timestamp; // Expect Firestore Timestamp for the selected date
-  service?: string; // Optional, as style might be primary
-  style?: string; // The requested hairstyle
-  time?: string; // The requested time slot string e.g., "14:00"
+  appointmentDateTime: Date; // Expect a JavaScript Date object for the full appointment date and time
+  service?: string;
+  style?: string;
+  time?: string; // Expect the HH:MM time string
   notes?: string;
-  status: BookingStatus; // Should be 'pending' initially
+  status: BookingStatus;
 }
 
 export async function createBookingAction(data: CreateBookingData) {
   try {
-    // Ensure dateTime has a sensible default time if only date was passed
-    // For example, set to midnight UTC of the selected day
-    const date = data.dateTime.toDate();
-    date.setUTCHours(0,0,0,0);
-    const bookingDateTime = Timestamp.fromDate(date);
+    // Convert the JavaScript Date object (data.appointmentDateTime) 
+    // from the client into a Firestore Timestamp.
+    // Using new Date() ensures it handles ISO strings if Next.js serializes it.
+    const firestoreTimestamp = Timestamp.fromDate(new Date(data.appointmentDateTime));
 
-    const bookingWithTimestamp = {
-      ...data,
-      dateTime: bookingDateTime, // Use the adjusted timestamp
-      createdAt: serverTimestamp(), // Add server-side timestamp
+    // Construct the object to be saved to Firestore
+    // It maps to the Booking type defined in src/types/index.ts
+    const bookingToSave = {
+      customerId: data.customerId,
+      customerName: data.customerName,
+      barberId: data.barberId,
+      barberName: data.barberName,
+      dateTime: firestoreTimestamp, // This is the main appointment Timestamp for querying/sorting
+      service: data.service,
+      style: data.style,
+      time: data.time, // Store the HH:MM string as well, as per Booking type
+      notes: data.notes,
+      status: data.status,
+      createdAt: serverTimestamp(), // Firestore server-side timestamp for creation
     };
 
-    const docRef = await addDoc(collection(db, 'bookings'), bookingWithTimestamp);
+    const docRef = await addDoc(collection(db, 'bookings'), bookingToSave);
     
     // Revalidate paths that show bookings
-    revalidatePath('/dashboard/my-bookings'); // For customer
-    revalidatePath(`/dashboard/booking-requests`); // For barber
-    revalidatePath(`/barbers/${data.barberId}`); // Barber's profile
+    revalidatePath('/dashboard/my-bookings');
+    revalidatePath('/dashboard/booking-requests');
+    revalidatePath(`/barbers/${data.barberId}`);
     
     return { success: true, bookingId: docRef.id };
-  } catch (error: any) {
+  } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
     console.error('Error creating booking:', error);
-    return { success: false, error: error.message || 'Failed to create booking.' };
+    console.error('Data received by createBookingAction:', JSON.stringify(data, null, 2));
+    return { success: false, error: error.message || 'Failed to create booking. Please check console for details.' };
   }
 }
 
