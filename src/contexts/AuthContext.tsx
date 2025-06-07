@@ -28,7 +28,7 @@ export interface AppUser extends FirebaseUser {
   bio?: string;
   specialties?: string[];
   experienceYears?: number;
-  availability?: string;
+  availability?: string; // JSON string
   subscriptionActive?: boolean;
 }
 
@@ -39,8 +39,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string, role: UserRole) => Promise<void>;
   logout: () => Promise<void>;
-  // firebaseUser: FirebaseUser | null; // Removed as AppUser extends FirebaseUser
-  // isAdmin: boolean; // Removed as it was a placeholder
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -51,12 +49,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!auth || !db) {
-      // Firebase services might not be initialized yet, especially on server.
-      // This can happen if the firebase/config.ts initialization is guarded by `typeof window !== 'undefined'`
-      // and this context is somehow trying to run/initialize server-side before client-side hydration
-      // where `auth` or `db` would be undefined.
-      // console.warn("AuthContext: Firebase auth or db not initialized. This might be normal during SSR pre-render.");
-      setLoading(false); // Avoid infinite loading if Firebase isn't ready server-side
+      setLoading(false); 
       return;
     }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -64,15 +57,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-          const appUserData = userDocSnap.data() as AppUser; // Cast to include custom fields
+          const appUserData = userDocSnap.data() as AppUser; 
           setUser({
-            ...firebaseUser, // Base Firebase user properties (uid, email, photoURL, etc.)
-            ...appUserData,   // Custom fields from Firestore (role, displayName from Firestore, etc.)
+            ...firebaseUser, 
+            ...appUserData,   
           });
         } else {
-          // This case might occur if a user exists in Firebase Auth but not in Firestore (e.g., incomplete signup)
-          // Or if it's a new user whose Firestore document hasn't been created yet by the signUp function.
-          // We set the basic Firebase user and role/displayName might be undefined until Firestore doc is synced.
           setUser(firebaseUser as AppUser); 
         }
       } else {
@@ -92,13 +82,13 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       displayName: displayName,
     });
     
-    const userDocData: any = { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const userDocData: Partial<AppUser> = {
       uid: firebaseUser.uid,
       email: firebaseUser.email,
       displayName: displayName,
       role: role,
-      createdAt: serverTimestamp(),
-      photoURL: firebaseUser.photoURL, // Save initial photoURL if any
+      createdAt: serverTimestamp() as Timestamp, // Cast for immediate use, Firestore handles conversion
+      photoURL: firebaseUser.photoURL, 
     };
 
     if (role === 'barber') {
@@ -111,17 +101,15 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
     await setDoc(doc(db, 'users', firebaseUser.uid), userDocData);
     
-    // Update local user state with the combined info
     setUser({
-      ...firebaseUser, // from auth
-      ...userDocData,  // from what we just wrote to firestore (excluding serverTimestamp)
-      createdAt: new Timestamp(new Date().getTime()/1000, 0) // Approximate client-side timestamp for immediate UI update
-    });
+      ...firebaseUser,
+      ...userDocData,  
+      createdAt: new Timestamp(Math.floor(Date.now()/1000),0) // client-side approximation for immediate UI
+    } as AppUser);
   };
 
   const signIn = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged will handle setting the user state
   };
 
   const logout = async () => {
@@ -129,7 +117,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
   
-  if (loading && typeof window !== 'undefined') { // Added typeof window check for safety
+  if (loading) { // Changed condition here
     return (
       <div className="flex flex-col min-h-screen">
         <header className="bg-card border-b p-4">
