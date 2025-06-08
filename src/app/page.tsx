@@ -107,7 +107,7 @@ export default function HomePage() {
                   </CardContent>
                   <CardFooter>
                     <Button asChild className="w-full">
-                      <Link href={action.link}>{action.actionText}</Link>
+                      <Link href={action.link}><span>{action.actionText}</span></Link>
                     </Button>
                   </CardFooter>
                 </Card>
@@ -134,7 +134,7 @@ export default function HomePage() {
                 </span>
               </Link>
             </Button>
-             <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-1 lg:col-span-1" asChild> {/* Adjusted span for better layout with 3 cols */}
+             <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-1 lg:col-span-1" asChild>
                 <Link href="/dashboard/my-reviews">
                     <span>
                         <StarIcon className="mr-3 h-6 w-6"/>
