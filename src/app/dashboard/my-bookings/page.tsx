@@ -40,14 +40,14 @@ export default function MyBookingsPage() {
       const q = query(
         collection(db, 'bookings'),
         where('customerId', '==', user.uid),
-        orderBy('appointmentDateTime', 'desc') // Use appointmentDateTime for sorting
+        orderBy('appointmentDateTime', 'desc')
       );
       const querySnapshot = await getDocs(q);
       const fetchedBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
       setBookings(fetchedBookings);
-    } catch (err) {
-      console.error("Error fetching bookings:", err);
-      setError("Failed to load your bookings. Please try again later.");
+    } catch (err: any) {
+      console.error("Error fetching customer bookings:", err);
+      setError("Failed to load your bookings. Please check the browser's developer console for more specific error messages (e.g., regarding missing Firestore indexes).");
     } finally {
       setLoading(false);
     }
@@ -93,7 +93,7 @@ export default function MyBookingsPage() {
      return (
       <div className="text-center py-10">
         <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
-        <p className="text-xl text-destructive">{error}</p>
+        <p className="text-xl text-destructive px-4">{error}</p>
         <Button asChild variant="link" className="mt-4">
           <Link href="/dashboard">
             <ChevronLeft className="mr-2 h-4 w-4" /> Back to Dashboard
