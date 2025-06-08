@@ -13,6 +13,17 @@ import { AlertCircle, CalendarCheck, ChevronLeft, Loader2, RefreshCw } from 'luc
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function BookingRequestsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -21,6 +32,7 @@ export default function BookingRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedBookingForAction, setSelectedBookingForAction] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (!authLoading && user && user.role === 'barber') {
@@ -44,7 +56,7 @@ export default function BookingRequestsPage() {
         collection(db, 'bookings'),
         where('barberId', '==', user.uid),
         where('status', 'in', ['pending', 'confirmed']), 
-        orderBy('appointmentDateTime', 'asc') // Use appointmentDateTime for sorting
+        orderBy('appointmentDateTime', 'asc')
       );
       const querySnapshot = await getDocs(q);
       const fetchedBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
@@ -69,6 +81,7 @@ export default function BookingRequestsPage() {
       toast({ title: "Update Failed", description: "Could not update booking status.", variant: "destructive" });
     } finally {
       setUpdatingBookingId(null);
+      setSelectedBookingForAction(null);
     }
   };
 
@@ -131,15 +144,39 @@ export default function BookingRequestsPage() {
               <CardFooter className="border-t pt-4 space-x-2">
                 {booking.status === 'pending' && (
                   <>
-                    <Button 
-                        size="sm" 
-                        onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
-                        disabled={updatingBookingId === booking.id}
-                        className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
-                    >
-                        {updatingBookingId === booking.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Accept
-                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                            size="sm" 
+                            className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
+                            disabled={updatingBookingId === booking.id}
+                            onClick={() => setSelectedBookingForAction(booking)}
+                        >
+                            {updatingBookingId === booking.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Accept
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirm Acceptance</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            A fee of RM5 will be charged to accept this booking. This is a simulated payment.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel onClick={() => setSelectedBookingForAction(null)}>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => selectedBookingForAction && handleUpdateStatus(selectedBookingForAction.id, 'confirmed')}
+                            disabled={!selectedBookingForAction || updatingBookingId === selectedBookingForAction.id}
+                            className="bg-accent hover:bg-accent/90"
+                          >
+                            {updatingBookingId === selectedBookingForAction?.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Pay RM5 & Accept
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
                     <Button 
                         variant="destructive" 
                         size="sm" 
@@ -189,3 +226,4 @@ export default function BookingRequestsPage() {
     </div>
   );
 }
+
