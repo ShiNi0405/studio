@@ -3,25 +3,14 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'customer' | 'barber';
 
-// This is the old ServiceItem, which will be replaced by OfferedHaircut for barbers.
-// It might still be useful if we have a generic concept of service elsewhere,
-// but for barber's profile, OfferedHaircut is more specific.
-// export interface ServiceItem {
-//   id: string; 
-//   name: string;
-//   price: number;
-//   duration?: number; 
-// }
-
-// New structure for haircuts offered by barbers
 export interface OfferedHaircut {
-  id: string; // Unique ID for this specific offering by the barber (e.g., for React keys)
-  haircutOptionId: string; // Reference to a general haircut definition (e.g., 'men-crew-cut')
-  haircutName: string; // Denormalized name like "Crew Cut" for display
-  gender: 'men' | 'women'; // Category
+  id: string; 
+  haircutOptionId: string; 
+  haircutName: string; 
+  gender: 'men' | 'women';
   price: number;
-  duration?: number; // Duration in minutes
-  portfolioImageURLs?: string[]; // URLs specific to this barber's version of this haircut
+  duration?: number | null; 
+  portfolioImageURLs?: string[]; 
 }
 
 export interface BaseUser {
@@ -40,26 +29,28 @@ export interface Customer extends BaseUser {
 export interface Barber extends BaseUser {
   role: 'barber';
   bio?: string;
-  specialties?: string[]; // General specialties, can remain
-  experienceYears?: number;
-  availability?: string; // JSON string for general availability
+  specialties?: string[]; 
+  experienceYears?: number | null;
+  availability?: string; 
   subscriptionActive?: boolean;
-  // portfolioImageURLs?: string[]; // This will be removed, portfolio is now part of OfferedHaircut
-  servicesOffered?: OfferedHaircut[]; // Replaces the old ServiceItem[]
+  servicesOffered?: OfferedHaircut[]; 
   location?: string; 
-  latitude?: number; 
-  longitude?: number; 
+  latitude?: number | null; 
+  longitude?: number | null; 
 }
 
 export type AppUser = Customer | Barber;
 
 export type BookingStatus =
-  | 'pending'
+  | 'pending_customer_request' // New: Initial state for custom style requests
+  | 'pending_barber_proposal' // Old 'pending', now for priced services awaiting barber direct acceptance
+  | 'pending_customer_approval' // New: Barber proposed a price, awaiting customer
   | 'confirmed'
   | 'cancelled_by_customer'
   | 'cancelled_by_barber'
   | 'completed'
-  | 'rejected';
+  | 'rejected_by_barber' // Barber rejected a priced service or a custom request pre-proposal
+  | 'rejected_by_customer'; // Customer rejected a barber's price proposal
 
 export interface Booking {
   id: string;
@@ -70,12 +61,13 @@ export interface Booking {
   appointmentDateTime: Timestamp;
   time: string; // HH:MM format
   
-  // These fields relate to the specific service/haircut booked
-  style?: string; // Could be a custom request or AI suggested style name
-  serviceName?: string; // Name of the haircut/service from barber's offered list
-  servicePrice?: number; // Price of the service at time of booking
-  serviceDuration?: number; // Duration of the service at time of booking
+  style?: string; 
+  serviceName?: string; 
+  servicePrice?: number | null; 
+  serviceDuration?: number | null;
   
+  proposedPriceByBarber?: number | null; // New: For negotiation
+
   notes?: string;
   status: BookingStatus;
   createdAt: Timestamp;
@@ -91,3 +83,4 @@ export interface Review {
   comment: string;
   createdAt: Timestamp;
 }
+    

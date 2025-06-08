@@ -34,7 +34,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -46,14 +45,14 @@ import { createBookingAction } from '@/app/actions/bookingActions';
 import { useSearchParams } from 'next/navigation';
 
 const bookingFormSchema = z.object({
-  style: z.string().optional(), // For AI suggested or custom styles
-  serviceId: z.string().optional(), // ID of the OfferedHaircut chosen
+  style: z.string().optional(), 
+  serviceId: z.string().optional(), 
   date: z.date({ required_error: "A date is required." }),
   time: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Invalid time format. Use HH:MM (e.g., 14:30)."}),
   notes: z.string().max(500, "Notes cannot exceed 500 characters.").optional(),
 }).refine(data => data.style || data.serviceId, {
   message: "Either a style description or a specific service must be provided/selected.",
-  path: ["serviceId"],
+  path: ["serviceId"], // Points error to serviceId if both are missing
 });
 
 
@@ -84,7 +83,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     },
   });
 
-  const formData = form.watch(); // Watch all form data for the dialog
+  const formData = form.watch(); 
 
   useEffect(() => {
     if (suggestedStyleFromQuery) {
@@ -102,14 +101,16 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         form.setValue('style', undefined); 
     } else {
         setSelectedOfferedHaircut(null);
+        form.setValue('serviceId', undefined); // Clear if service not found
     }
   };
 
-  const handleFormSubmit = async (data: BookingFormValues) => {
-    setIsDialogControlledOpen(true); // Open dialog on form "attempted" submit
+  const handleFormSubmit = async () => { // Removed data param as we use form.getValues()
+    setIsDialogControlledOpen(true); 
   }
 
-  async function processBooking(data: BookingFormValues) {
+  async function processBooking() {
+    const data = form.getValues(); // Get latest values from form
     setIsSubmitting(true);
     try {
       const [hours, minutes] = data.time.split(':').map(Number);
@@ -128,13 +129,16 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         servicePrice: selectedOfferedHaircut?.price,
         serviceDuration: selectedOfferedHaircut?.duration,
         notes: data.notes || '',
-        status: 'pending' as const,
+        // Status determined in createBookingAction
       };
 
       const result = await createBookingAction(bookingPayload);
 
       if (result.success) {
-        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${data.style || selectedOfferedHaircut?.haircutName} on ${format(data.date, "PPP")} at ${data.time} has been sent.` });
+        toast({ 
+            title: "Booking Request Sent!", 
+            description: `Your request for ${data.style || selectedOfferedHaircut?.haircutName || 'an appointment'} on ${format(data.date, "PPP")} at ${data.time} has been sent. Status: ${result.status?.replace(/_/g, ' ')}.` 
+        });
         form.reset({
             style: suggestedStyleFromQuery || undefined,
             serviceId: suggestedStyleFromQuery ? undefined : "",
@@ -152,13 +156,17 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       toast({ title: "Booking Failed", description: error.message || "There was an error submitting your booking. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
-      setIsDialogControlledOpen(false); // Close dialog after submission attempt
+      setIsDialogControlledOpen(false); 
     }
   }
   
   const servicesAvailable = barber.servicesOffered && barber.servicesOffered.length > 0;
-  const currentServiceDisplay = formData.style || selectedOfferedHaircut?.haircutName || "Appointment";
-  const currentPriceDisplay = selectedOfferedHaircut?.price !== undefined ? `RM${selectedOfferedHaircut.price.toFixed(2)}` : "Price to be confirmed by barber";
+  // Use formData for dialog display, selectedOfferedHaircut for form display logic
+  const dialogServiceDisplay = formData.style || barber.servicesOffered?.find(s => s.id === formData.serviceId)?.haircutName || "Appointment";
+  const dialogPriceDisplay = (formData.serviceId && barber.servicesOffered?.find(s => s.id === formData.serviceId)?.price !== undefined) 
+    ? `RM${barber.servicesOffered.find(s => s.id === formData.serviceId)!.price.toFixed(2)}` 
+    : "Price to be confirmed by barber";
+
 
   return (
     <Form {...form}>
@@ -187,8 +195,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                         field.onChange(value); 
                         handleServiceChange(value);
                     }} 
-                    defaultValue={field.value}
-                    value={field.value || ""} // Ensure value is controlled
+                    value={field.value || ""} 
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -287,7 +294,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
           )}
         />
         
-        {selectedOfferedHaircut?.price !== undefined && (
+        {selectedOfferedHaircut?.price !== undefined && selectedOfferedHaircut.price !== null && (
             <div className="p-3 bg-accent/10 rounded-md text-center">
                 <p className="text-sm text-accent-foreground/80">Selected Service Price:</p>
                 <p className="text-xl font-bold text-accent">RM{selectedOfferedHaircut.price.toFixed(2)}</p>
@@ -306,26 +313,25 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Your Appointment</AlertDialogTitle>
+                <AlertDialogTitle>Confirm Your Appointment Details</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Please review your appointment details before confirming:
+                    Review your request for <span className="font-semibold">{barber.displayName}</span>:
                     <ul className="mt-3 space-y-1 text-sm text-foreground/90 list-disc list-inside">
-                        <li><strong>Barber:</strong> {barber.displayName}</li>
-                        <li><strong>Service:</strong> {currentServiceDisplay}</li>
+                        <li><strong>Service:</strong> {dialogServiceDisplay}</li>
                         <li><strong>Date:</strong> {formData.date ? format(formData.date, "PPP") : 'Not set'}</li>
                         <li><strong>Time:</strong> {formData.time || 'Not set'}</li>
-                        <li><strong>Price:</strong> <span className="font-semibold">{currentPriceDisplay}</span></li>
+                        <li><strong>Price:</strong> <span className="font-semibold">{dialogPriceDisplay}</span></li>
                         {formData.notes && (<li><strong>Notes:</strong> {formData.notes}</li>)}
                     </ul>
-                     {selectedOfferedHaircut?.price === undefined && !formData.style && (
-                        <p className="mt-2 text-xs text-muted-foreground">The final price for this service will be confirmed by the barber.</p>
+                     {(!formData.serviceId || barber.servicesOffered?.find(s => s.id === formData.serviceId)?.price === undefined) && (
+                        <p className="mt-2 text-xs text-muted-foreground">The final price for custom styles or unpriced services will be proposed by the barber for your approval.</p>
                      )}
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setIsDialogControlledOpen(false)} disabled={isSubmitting}>Cancel</AlertDialogCancel>
                 <AlertDialogAction 
-                    onClick={() => processBooking(form.getValues())} 
+                    onClick={processBooking} 
                     disabled={isSubmitting}
                     className="bg-primary hover:bg-primary/90"
                 >
@@ -335,9 +341,8 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-
       </form>
     </Form>
   );
 }
-
+    

@@ -51,7 +51,7 @@ export default function HairstyleSuggestionPage() {
   const [loadingTryOnImage, setLoadingTryOnImage] = useState(false);
 
   const [showWebcam, setShowWebcam] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null); // null: unknown, true: granted, false: denied
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,12 +69,24 @@ export default function HairstyleSuggestionPage() {
     }
   };
 
+  const stopWebcam = useCallback(() => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+    setCameraStream(null);
+    setShowWebcam(false); // This will hide the webcam component
+    if(videoRef.current) videoRef.current.srcObject = null; // Important to release the srcObject
+  }, [cameraStream]);
+
+
   const startWebcam = useCallback(async () => {
-    setShowWebcam(true);
-    setUserPhotoDataUri(null); 
+    setShowWebcam(true); // Show webcam component (video feed + buttons)
+    setUserPhotoDataUri(null); // Clear any uploaded photo
     setAiSuggestion(null);
     setGeneratedTryOnImageURL(null);
     setCurrentTryOnStyleName(null);
+    setHasCameraPermission(null); // Reset permission state
+
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
@@ -91,33 +103,26 @@ export default function HairstyleSuggestionPage() {
           title: 'Camera Access Denied',
           description: 'Please enable camera permissions in your browser settings.',
         });
-        setShowWebcam(false);
+        // Do not call stopWebcam here immediately, let UI reflect denied state
       }
     } else {
       toast({ variant: 'destructive', title: 'Webcam Not Supported', description: 'Your browser does not support webcam access.' });
-      setShowWebcam(false);
+      setShowWebcam(false); // Hide if not supported
     }
   }, [toast]);
 
-  const stopWebcam = useCallback(() => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach(track => track.stop());
-    }
-    setCameraStream(null);
-    setShowWebcam(false);
-    if(videoRef.current) videoRef.current.srcObject = null;
-  }, [cameraStream]);
-
+  // Effect to stop webcam on component unmount
   useEffect(() => {
-    // Ensure webcam is stopped if component unmounts or showWebcam becomes false
     return () => {
-        stopWebcam();
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+        }
     };
-  }, [stopWebcam]);
+  }, [cameraStream]);
 
 
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && cameraStream) { // Ensure stream is active
       const video = videoRef.current;
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
@@ -129,7 +134,7 @@ export default function HairstyleSuggestionPage() {
       setAiSuggestion(null);
       setGeneratedTryOnImageURL(null);
       setCurrentTryOnStyleName(null);
-      stopWebcam(); 
+      stopWebcam(); // Stop webcam after capture
     }
   };
   
@@ -172,14 +177,8 @@ export default function HairstyleSuggestionPage() {
         return;
     }
     setLoadingTryOnImage(true);
-    setGeneratedTryOnImageURL(null); // Clear previous image
-    setCurrentTryOnStyleName(hairstyleName); // Update current style being tried on
-
-    // If this try-on is for an AI suggested style, we might not need to clear aiSuggestion.
-    // If it's for a predefined style, aiSuggestion might not be relevant for this specific try-on.
-    // For simplicity, we're assuming the main visualization area shows the current "try-on" attempt.
-    // If this call comes from a predefined style, aiSuggestion might naturally be null or for a different style.
-    // Consider if `aiSuggestion` should be cleared if trying on a predefined style. For now, it's not explicitly cleared here.
+    setGeneratedTryOnImageURL(null); 
+    setCurrentTryOnStyleName(hairstyleName); 
 
     setTimeout(() => {
       const placeholderUrl = `https://placehold.co/400x400.png?text=Try-On:${hairstyleName.substring(0,10).replace(/\s/g,'+')}&font=lora`;
@@ -228,25 +227,27 @@ export default function HairstyleSuggestionPage() {
                     </Button>
                 </div>
             )}
-
+            
+            {/* Webcam Section - Always render video tag if showWebcam is true */}
             {showWebcam && !userPhotoDataUri && (
                 <Card className="p-4">
                     <CardTitle className="text-lg mb-2">Webcam Preview</CardTitle>
                     <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay playsInline muted />
-                    {hasCameraPermission === false && (
+                    
+                    {hasCameraPermission === false && ( // Permission denied
                         <Alert variant="destructive" className="mt-2">
                             <AlertTitle>Camera Access Denied</AlertTitle>
-                            <AlertDescription>Please enable camera permissions in your browser settings to use the webcam.</AlertDescription>
+                            <AlertDescription>Please enable camera permissions in your browser settings to use the webcam. You might need to refresh the page after enabling.</AlertDescription>
                         </Alert>
                     )}
-                     {hasCameraPermission === null && !cameraStream && ( 
+                    {hasCameraPermission === null && !cameraStream && ( // Permission pending / initial state
                         <Alert variant="default" className="mt-2">
                             <AlertTitle>Requesting Camera</AlertTitle>
                             <AlertDescription>Attempting to access your webcam. Please allow permission when prompted.</AlertDescription>
                         </Alert>
                     )}
                     <div className="mt-4 flex gap-2">
-                        <Button onClick={capturePhoto} disabled={hasCameraPermission !== true || !cameraStream}>Capture Photo</Button>
+                        <Button onClick={capturePhoto} disabled={!cameraStream || hasCameraPermission !== true}>Capture Photo</Button>
                         <Button variant="outline" onClick={stopWebcam}>Close Webcam</Button>
                     </div>
                 </Card>
@@ -285,10 +286,9 @@ export default function HairstyleSuggestionPage() {
 
           {aiError && <p className="text-destructive text-center py-2 bg-destructive/10 rounded-md">{aiError}</p>}
 
-          {/* Combined Display Area for AI Suggestion and Try-On Image */}
           {(aiSuggestion || generatedTryOnImageURL || loadingTryOnImage) && (
             <Card className="bg-muted/50 p-4 sm:p-6 mt-6 shadow-md">
-                {aiSuggestion && !generatedTryOnImageURL && !loadingTryOnImage && ( // Only show AI text if no try-on image is active/loading
+                {aiSuggestion && !generatedTryOnImageURL && !loadingTryOnImage && ( 
                     <>
                         <CardTitle className="text-xl text-primary mb-1">AI Suggestion: {aiSuggestion.suggestedHairstyleName}</CardTitle>
                         <CardDescription className="mb-3">Detected Face Shape (Mock): <span className="font-semibold">{aiSuggestion.detectedFaceShape}</span></CardDescription>
@@ -299,7 +299,6 @@ export default function HairstyleSuggestionPage() {
 
               <div className="grid md:grid-cols-2 gap-6 items-start">
                 <div className="space-y-3">
-                    {/* Buttons always relate to the currentTryOnStyleName if available, or AI suggestion if that's the context */}
                     {(currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName) && (
                          <Button 
                             onClick={() => handleGenerateTryOnImage(currentTryOnStyleName || aiSuggestion!.suggestedHairstyleName)} 
@@ -363,14 +362,13 @@ export default function HairstyleSuggestionPage() {
                 <CardTitle className="text-lg">{style.name}</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 flex-grow">
-                {/* Description for predefined styles can be added here if needed */}
               </CardContent>
               <CardFooter className="p-4 pt-0 mt-auto flex flex-col sm:flex-row gap-2">
                 <Button 
                     className="w-full sm:w-1/2" 
                     variant="outline"
                     onClick={() => {
-                        setAiSuggestion(null); // Clear AI suggestion context
+                        setAiSuggestion(null);
                         handleGenerateTryOnImage(style.name);
                     }}
                     disabled={!userPhotoDataUri || loadingTryOnImage}
@@ -391,4 +389,4 @@ export default function HairstyleSuggestionPage() {
     </div>
   );
 }
-
+    
