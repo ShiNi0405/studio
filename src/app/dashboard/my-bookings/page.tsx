@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { AlertCircle, CalendarCheck, CalendarX, CheckCircle, ChevronLeft, Loader2, RefreshCw, Star } from 'lucide-react';
+import { AlertCircle, CalendarCheck, CalendarX, CheckCircle, ChevronLeft, Clock, Loader2, RefreshCw, Star } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 
@@ -140,13 +140,19 @@ export default function MyBookingsPage() {
                     </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="flex-grow">
+              <CardContent className="flex-grow space-y-1">
                 <p className="text-sm text-foreground">
                   <strong>Date & Time:</strong> {booking.appointmentDateTime ? format(new Date((booking.appointmentDateTime as unknown as Timestamp).seconds * 1000), 'PPP p') : 'N/A'}
                 </p>
                 {booking.serviceName && booking.servicePrice !== undefined && booking.servicePrice !== null && (
                   <p className="text-sm text-foreground">
                     <strong>Price:</strong> RM{booking.servicePrice.toFixed(2)}
+                  </p>
+                )}
+                {booking.serviceDuration && (
+                  <p className="text-sm text-foreground flex items-center">
+                    <Clock className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
+                    <strong>Duration:</strong> {booking.serviceDuration} minutes
                   </p>
                 )}
                 {booking.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2"><strong>Notes:</strong> {booking.notes}</p>}
