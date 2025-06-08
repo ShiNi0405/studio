@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Search, Sparkles as SparklesIcon, Loader2, UserCog, CalendarClock, Star as StarIcon, CalendarDays, Scissors, Grid } from 'lucide-react';
+import { ArrowRight, Search, Sparkles as SparklesIcon, Loader2, UserCog, CalendarClock, Star as StarIcon, CalendarDays, Scissors, Wand2, Palette } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
@@ -23,16 +23,16 @@ export default function HomePage() {
   const customerActions = [
     {
       title: "AI Hairstyle Advisor",
-      description: "Our AI is learning to give you the perfect cut! For now, explore styles and try them on.",
-      link: "/hairstyle-suggestion", // Links to the try-on page; AI specific part is conceptual for now
-      icon: SparklesIcon,
-      actionText: "Get Ideas"
+      description: "Upload your photo, tell us your style vibe, and get an AI-powered hairstyle recommendation tailored for you.",
+      link: "/hairstyle-suggestion",
+      icon: Wand2, // Changed icon
+      actionText: "Get AI Suggestion"
     },
     {
       title: "Browse & Try Styles",
-      description: "Explore our collection of popular hairstyles. Upload your photo, try them on virtually (mock), and find barbers who can bring your new look to life.",
-      link: "/hairstyle-suggestion",
-      icon: Grid,
+      description: "Explore our curated collection of popular men's and women's hairstyles. Upload your photo to visualize them with a mock try-on.",
+      link: "/browse-styles", // New link
+      icon: Palette, // Changed icon
       actionText: "Explore Styles"
     },
     {
@@ -80,10 +80,10 @@ export default function HomePage() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
-              <Link href="/hairstyle-suggestion">
+              <Link href="/hairstyle-suggestion"> {/* Guests can also try AI advisor */}
                 <span>
-                  <SparklesIcon className="mr-3 h-6 w-6" />
-                  Virtual Style Try-On
+                  <Wand2 className="mr-3 h-6 w-6" />
+                  AI Hairstyle Advisor
                 </span>
               </Link>
             </Button>
