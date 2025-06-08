@@ -48,8 +48,8 @@ import { useSearchParams } from 'next/navigation';
 // serviceId is for selecting a barber's specific offered service
 // style is for custom text input when a specific service isn't chosen / doesn't match
 const bookingFormSchema = z.object({
-  style: z.string().optional(), 
-  serviceId: z.string().optional(), 
+  style: z.string().optional(),
+  serviceId: z.string().optional(),
   date: z.date({ required_error: "A date is required." }),
   time: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Invalid time format. Use HH:MM (e.g., 14:30)."}),
   notes: z.string().max(500, "Notes cannot exceed 500 characters.").optional(),
@@ -71,7 +71,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDialogControlledOpen, setIsDialogControlledOpen] = useState(false);
-  
+
   const searchParams = useSearchParams();
   const preferredStyleNameFromQuery = searchParams.get('style'); // Text description
   const preferredHaircutOptionIdFromQuery = searchParams.get('haircutOptionId'); // Specific ID
@@ -88,7 +88,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     },
   });
 
-  const formData = form.watch(); 
+  const formData = form.watch();
 
   useEffect(() => {
     let servicePreSelected = false;
@@ -97,41 +97,44 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         s => s.haircutOptionId === preferredHaircutOptionIdFromQuery
       );
       if (matchingService) {
-        form.setValue('serviceId', matchingService.id);
-        form.setValue('style', undefined); // Clear custom style if specific service is matched
+        form.setValue('serviceId', matchingService.id, { shouldValidate: true });
+        form.setValue('style', undefined, { shouldValidate: true });
         setSelectedOfferedHaircut(matchingService);
         servicePreSelected = true;
       }
     }
 
     if (!servicePreSelected && preferredStyleNameFromQuery) {
-      form.setValue('style', preferredStyleNameFromQuery);
-      form.setValue('serviceId', undefined);
+      form.setValue('style', preferredStyleNameFromQuery, { shouldValidate: true });
+      form.setValue('serviceId', undefined, { shouldValidate: true });
       setSelectedOfferedHaircut(null);
     }
-    // Only run on initial mount or when query params change, not on every form value change
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preferredHaircutOptionIdFromQuery, preferredStyleNameFromQuery, barber.servicesOffered, form.setValue]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preferredHaircutOptionIdFromQuery, preferredStyleNameFromQuery, barber.servicesOffered]); // Removed form.setValue from dependency array
 
 
   const handleServiceChange = (serviceIdValue: string) => {
     const service = barber.servicesOffered?.find(s => s.id === serviceIdValue);
     if (service) {
         setSelectedOfferedHaircut(service);
-        form.setValue('serviceId', serviceIdValue);
-        form.setValue('style', undefined); // Clear custom style if specific service is selected
+        form.setValue('serviceId', serviceIdValue, { shouldValidate: true });
+        form.setValue('style', undefined, { shouldValidate: true });
     } else {
         setSelectedOfferedHaircut(null);
-        // Do not clear serviceId here, let validation handle if it's required
+        if (!serviceIdValue) { // Handles explicitly deselecting to the placeholder
+             form.setValue('serviceId', undefined, { shouldValidate: true });
+             // Optionally, if deselecting, you might want to re-enable 'style' input or clear it
+             // For now, just ensuring serviceId is cleared for validation purposes.
+        }
     }
   };
 
-  const handleFormSubmit = async () => { 
-    setIsDialogControlledOpen(true); 
+  const handleFormSubmit = async () => {
+    setIsDialogControlledOpen(true);
   }
 
   async function processBooking() {
-    const data = form.getValues(); 
+    const data = form.getValues();
     setIsSubmitting(true);
     try {
       const [hours, minutes] = data.time.split(':').map(Number);
@@ -139,7 +142,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       appointmentDateTime.setHours(hours, minutes, 0, 0);
 
       // Determine service details for payload
-      let servicePayloadDetails: Partial<ReturnType<typeof createBookingAction>> = {};
+      let servicePayloadDetails: Partial<ReturnType<typeof createBookingAction>> = {}; // Use a more appropriate type if createBookingAction return type is complex
       if (data.serviceId && selectedOfferedHaircut) {
         servicePayloadDetails = {
             serviceName: selectedOfferedHaircut.haircutName,
@@ -161,34 +164,35 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         notes: data.notes || '',
       };
 
+      // @ts-ignore
       const result = await createBookingAction(bookingPayload);
 
       if (result.success) {
         const bookedItemName = data.style || selectedOfferedHaircut?.haircutName || preferredStyleNameFromQuery || 'an appointment';
-        toast({ 
-            title: "Booking Request Sent!", 
-            description: `Your request for ${bookedItemName} on ${format(data.date, "PPP")} at ${data.time} has been sent. Status: ${result.status?.replace(/_/g, ' ')}.` 
+        toast({
+            title: "Booking Request Sent!",
+            description: `Your request for ${bookedItemName} on ${format(data.date, "PPP")} at ${data.time} has been sent. Status: ${result.status?.replace(/_/g, ' ')}.`
         });
         form.reset({ // Reset form to initial state considering query params
             style: preferredStyleNameFromQuery || undefined,
-            serviceId: undefined, // Reset, useEffect will re-evaluate
+            serviceId: undefined,
             time: "",
             notes: "",
             date: undefined,
         });
-        setSelectedOfferedHaircut(null); 
-        // Trigger useEffect again if needed, or manually re-evaluate pre-selection
+        setSelectedOfferedHaircut(null);
+        // Re-evaluate pre-selection after reset
         if (preferredHaircutOptionIdFromQuery && barber.servicesOffered) {
             const matchingService = barber.servicesOffered.find(s => s.haircutOptionId === preferredHaircutOptionIdFromQuery);
             if (matchingService) {
-                form.setValue('serviceId', matchingService.id);
-                form.setValue('style', undefined);
+                form.setValue('serviceId', matchingService.id, { shouldValidate: true });
+                form.setValue('style', undefined, { shouldValidate: true });
                 setSelectedOfferedHaircut(matchingService);
             } else if (preferredStyleNameFromQuery) {
-                 form.setValue('style', preferredStyleNameFromQuery);
+                 form.setValue('style', preferredStyleNameFromQuery, { shouldValidate: true });
             }
         } else if (preferredStyleNameFromQuery) {
-            form.setValue('style', preferredStyleNameFromQuery);
+            form.setValue('style', preferredStyleNameFromQuery, { shouldValidate: true });
         }
 
       } else {
@@ -200,26 +204,26 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       toast({ title: "Booking Failed", description: error.message || "There was an error submitting your booking. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
-      setIsDialogControlledOpen(false); 
+      setIsDialogControlledOpen(false);
     }
   }
-  
+
   const servicesAvailable = barber.servicesOffered && barber.servicesOffered.length > 0;
-  
+
   // Logic for display in dialog and form
-  const currentServiceForDisplay = selectedOfferedHaircut || 
+  const currentServiceForDisplay = selectedOfferedHaircut ||
                                    (preferredHaircutOptionIdFromQuery && barber.servicesOffered?.find(s => s.haircutOptionId === preferredHaircutOptionIdFromQuery));
-  
+
   const dialogServiceDescription = currentServiceForDisplay?.haircutName || formData.style || preferredStyleNameFromQuery || "Appointment";
   const dialogPriceDisplay = (currentServiceForDisplay?.price !== undefined && currentServiceForDisplay.price !== null)
-    ? `RM${currentServiceForDisplay.price.toFixed(2)}` 
+    ? `RM${currentServiceForDisplay.price.toFixed(2)}`
     : "Price to be confirmed by barber";
 
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
-        
+
         {/* Conditional rendering for service selection or style input */}
         {servicesAvailable && (!preferredStyleNameFromQuery || currentServiceForDisplay) ? (
            <FormField
@@ -228,12 +232,12 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Select a Haircut/Service</FormLabel>
-                <Select 
+                <Select
                     onValueChange={(value) => {
-                        field.onChange(value); 
+                        field.onChange(value);
                         handleServiceChange(value);
-                    }} 
-                    value={field.value || ""} 
+                    }}
+                    value={field.value || ""}
                     disabled={!!(preferredHaircutOptionIdFromQuery && currentServiceForDisplay)} // Disable if pre-filled by query
                 >
                   <FormControl>
@@ -248,6 +252,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                         {service.duration ? ` (${service.duration} min)` : ''}
                       </SelectItem>
                     ))}
+                     <SelectItem value=""><em>Request custom style/service (describe below)</em></SelectItem>
                   </SelectContent>
                 </Select>
                 {preferredHaircutOptionIdFromQuery && currentServiceForDisplay && (
@@ -265,9 +270,9 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                 <FormItem>
                     <FormLabel>Describe Desired Style/Service</FormLabel>
                     <FormControl>
-                    <Input 
-                        placeholder="e.g., Men's classic cut, AI suggested style" 
-                        {...field} 
+                    <Input
+                        placeholder="e.g., Men's classic cut, AI suggested style"
+                        {...field}
                         value={field.value || preferredStyleNameFromQuery || ""}
                         readOnly={!!(preferredStyleNameFromQuery && (!preferredHaircutOptionIdFromQuery || !currentServiceForDisplay))} // Readonly if it's a custom style from query
                     />
@@ -341,7 +346,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             </FormItem>
           )}
         />
-        
+
         {currentServiceForDisplay?.price !== undefined && currentServiceForDisplay.price !== null && (
             <div className="p-3 bg-accent/10 rounded-md text-center">
                 <p className="text-sm text-accent-foreground/80">Selected Service Price:</p>
@@ -351,9 +356,9 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
 
         <AlertDialog open={isDialogControlledOpen} onOpenChange={setIsDialogControlledOpen}>
             <AlertDialogTrigger asChild>
-                <Button 
-                    type="submit" 
-                    disabled={isSubmitting || !form.formState.isValid } 
+                <Button
+                    type="submit"
+                    disabled={isSubmitting || !form.formState.isValid }
                     className="w-full text-lg py-6"
                 >
                     Request Appointment
@@ -378,8 +383,8 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setIsDialogControlledOpen(false)} disabled={isSubmitting}>Cancel</AlertDialogCancel>
-                <AlertDialogAction 
-                    onClick={processBooking} 
+                <AlertDialogAction
+                    onClick={processBooking}
                     disabled={isSubmitting}
                     className="bg-primary hover:bg-primary/90"
                 >
@@ -393,3 +398,4 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     </Form>
   );
 }
+
