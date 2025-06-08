@@ -9,9 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowRight, Loader2, Sparkles, Image as ImageIcon, Wand2 } from 'lucide-react';
-import { suggestHairstyle, type SuggestHairstyleOutput } from '@/ai/flows/suggest-hairstyle-flow';
-import { generateHairstyleImage, type GenerateHairstyleImageOutput } from '@/ai/flows/generate-hairstyle-image-flow';
+// Removed AI flow imports as we are using mock data
+// import { suggestHairstyle, type SuggestHairstyleOutput } from '@/ai/flows/suggest-hairstyle-flow';
+// import { generateHairstyleImage, type GenerateHairstyleImageOutput } from '@/ai/flows/generate-hairstyle-image-flow';
 import { useToast } from '@/hooks/use-toast';
+
+// Define the type for AI Suggestion Output locally for mock data
+interface MockSuggestHairstyleOutput {
+  suggestedHairstyleName: string;
+  suggestedHairstyleDescription: string;
+  suggestedHairstyleImagePrompt: string;
+}
 
 const faceShapes = ["Round", "Oval", "Square", "Heart", "Diamond", "Long"];
 const styleTypes = ["Casual", "Trendy", "Professional", "Sporty", "Elegant", "Edgy", "Vintage"];
@@ -31,9 +39,9 @@ export default function HairstyleSuggestionPage() {
   const [selectedFaceShape, setSelectedFaceShape] = useState<string | undefined>(undefined);
   const [selectedStyleType, setSelectedStyleType] = useState<string | undefined>(undefined);
   
-  const [aiSuggestion, setAiSuggestion] = useState<SuggestHairstyleOutput | null>(null);
+  const [aiSuggestion, setAiSuggestion] = useState<MockSuggestHairstyleOutput | null>(null);
   const [loadingAISuggestion, setLoadingAISuggestion] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null); // Kept for potential future use or form validation errors
 
   const [generatedImageURL, setGeneratedImageURL] = useState<string | null>(null);
   const [loadingGeneratedImage, setLoadingGeneratedImage] = useState(false);
@@ -48,16 +56,23 @@ export default function HairstyleSuggestionPage() {
     setAiError(null);
     setAiSuggestion(null);
     setGeneratedImageURL(null); 
-    try {
-      const suggestion = await suggestHairstyle({ faceShape: selectedFaceShape, preferredStyleType: selectedStyleType });
-      setAiSuggestion(suggestion);
-    } catch (error: any) {
-      console.error("Error getting AI suggestion:", error);
-      setAiError(error.message || "Failed to get AI suggestion.");
-      toast({ title: "Suggestion Failed", description: error.message || "Could not fetch AI suggestion.", variant: "destructive" });
-    } finally {
-      setLoadingAISuggestion(false);
-    }
+
+    // Simulate AI delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Mock AI Suggestion Logic
+    const mockName = `${selectedStyleType} ${selectedFaceShape}-Specific Cut`;
+    const mockDescription = `A fantastic ${mockName.toLowerCase()} that perfectly complements a ${selectedFaceShape.toLowerCase()} face and a ${selectedStyleType.toLowerCase()} vibe. It's easy to manage and looks great!`;
+    const mockImagePrompt = `Photo of a person with a ${selectedFaceShape.toLowerCase()} face shape, sporting a ${mockName.toLowerCase()}, ${selectedStyleType.toLowerCase()} hairstyle, studio lighting.`;
+    
+    setAiSuggestion({
+      suggestedHairstyleName: mockName,
+      suggestedHairstyleDescription: mockDescription,
+      suggestedHairstyleImagePrompt: mockImagePrompt,
+    });
+    
+    setLoadingAISuggestion(false);
+    toast({ title: "Suggestion Ready!", description: "Our virtual stylist has a suggestion for you."});
   };
 
   const handleGenerateImage = async () => {
@@ -67,17 +82,16 @@ export default function HairstyleSuggestionPage() {
     }
     setLoadingGeneratedImage(true);
     setGeneratedImageURL(null);
-    try {
-      const result: GenerateHairstyleImageOutput = await generateHairstyleImage({ imagePrompt: aiSuggestion.suggestedHairstyleImagePrompt });
-      setGeneratedImageURL(result.imageDataURI);
-      toast({ title: "Image Generated!", description: "The AI has conjured an image for your suggested style." });
-    } catch (error: any) {
-      console.error("Error generating image:", error);
-      toast({ title: "Image Generation Failed", description: error.message || "Could not generate image.", variant: "destructive" });
-      // Keep placeholder or show an error image if you have one
-    } finally {
-      setLoadingGeneratedImage(false);
-    }
+
+    // Simulate image generation delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Use a placeholder image
+    const placeholderUrl = `https://placehold.co/400x400.png?text=${encodeURIComponent(aiSuggestion.suggestedHairstyleName.substring(0,20))}`;
+    setGeneratedImageURL(placeholderUrl);
+    
+    toast({ title: "Image Ready!", description: "Here's a visual for your suggested style." });
+    setLoadingGeneratedImage(false);
   };
 
   const handleBookStyle = (styleName: string) => {
@@ -124,18 +138,18 @@ export default function HairstyleSuggestionPage() {
             disabled={loadingAISuggestion || !selectedFaceShape || !selectedStyleType}
           >
             {loadingAISuggestion && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-            <Sparkles className="mr-2 h-5 w-5" /> Get AI Suggestion
+            <Sparkles className="mr-2 h-5 w-5" /> Get Mock Suggestion
           </Button>
 
           {aiError && <p className="text-destructive text-center">{aiError}</p>}
 
           {aiSuggestion && (
             <Card className="bg-muted/50 p-4 sm:p-6 mt-6 shadow-md">
-              <CardTitle className="text-xl text-primary mb-3">AI Suggests: {aiSuggestion.suggestedHairstyleName}</CardTitle>
+              <CardTitle className="text-xl text-primary mb-3">Mock Suggestion: {aiSuggestion.suggestedHairstyleName}</CardTitle>
               <div className="grid md:grid-cols-2 gap-4 items-center">
                 <div className="space-y-3">
                   <p className="text-foreground/90">{aiSuggestion.suggestedHairstyleDescription}</p>
-                   <p className="text-xs text-muted-foreground italic break-words">Image prompt: &quot;{aiSuggestion.suggestedHairstyleImagePrompt}&quot;</p>
+                   <p className="text-xs text-muted-foreground italic break-words">Mock image prompt: &quot;{aiSuggestion.suggestedHairstyleImagePrompt}&quot;</p>
                   <div className="flex flex-col sm:flex-row gap-3 pt-2">
                     <Button 
                       onClick={handleGenerateImage} 
@@ -144,7 +158,7 @@ export default function HairstyleSuggestionPage() {
                       className="flex-1"
                     >
                       {loadingGeneratedImage && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      <ImageIcon className="mr-2 h-4 w-4" /> Generate Image
+                      <ImageIcon className="mr-2 h-4 w-4" /> Generate Mock Image
                     </Button>
                     <Button 
                       onClick={() => handleBookStyle(aiSuggestion.suggestedHairstyleName)}
@@ -158,11 +172,11 @@ export default function HairstyleSuggestionPage() {
                   {loadingGeneratedImage ? (
                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
                   ) : generatedImageURL ? (
-                    <Image src={generatedImageURL} alt={`AI generated: ${aiSuggestion.suggestedHairstyleName}`} fill style={{ objectFit: 'cover' }} />
+                    <Image src={generatedImageURL} alt={`Mock image for: ${aiSuggestion.suggestedHairstyleName}`} data-ai-hint="hairstyle fashion" fill style={{ objectFit: 'cover' }} />
                   ) : (
                     <div className="text-center text-muted-foreground p-4">
                       <ImageIcon className="h-12 w-12 mx-auto mb-2"/>
-                      <p className="text-sm">Image will appear here</p>
+                      <p className="text-sm">Mock image will appear here</p>
                     </div>
                   )}
                 </div>
