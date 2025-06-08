@@ -15,7 +15,7 @@ import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-export default function HairstyleTryOnPage() {
+export default function HairstyleSuggestionPage() {
   const router = useRouter();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -32,7 +32,6 @@ export default function HairstyleTryOnPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
-  // Use the imported options for the popular styles display, excluding custom ones
   const popularMenStyles: HaircutOptionConfig[] = MENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
   const popularWomenStyles: HaircutOptionConfig[] = WOMENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
 
@@ -132,8 +131,8 @@ export default function HairstyleTryOnPage() {
     setCurrentTryOnStyleName(hairstyleName); 
     setCurrentTryOnOptionId(optionId || null);
 
+    // Mock AI Image Generation (Try-On)
     setTimeout(() => {
-      // Use a more descriptive placeholder text for mock image
       const placeholderText = `Try-On:\n${hairstyleName.substring(0,20).replace(/\s/g,'+')}`;
       const placeholderUrl = `https://placehold.co/400x400.png?text=${encodeURIComponent(placeholderText)}&font=lora`;
       setGeneratedTryOnImageURL(placeholderUrl);
@@ -169,7 +168,6 @@ export default function HairstyleTryOnPage() {
     if(showWebcam) stopWebcam();
   }
   
-
   return (
     <div className="max-w-5xl mx-auto py-8 space-y-10">
       <Card className="shadow-xl overflow-hidden">
@@ -345,3 +343,5 @@ export default function HairstyleTryOnPage() {
     </div>
   );
 }
+
+    

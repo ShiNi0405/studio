@@ -23,15 +23,15 @@ export default function HomePage() {
   const customerActions = [
     {
       title: "AI Hairstyle Advisor",
-      description: "Get personalized hairstyle suggestions based on your photo and preferences.",
-      link: "/hairstyle-suggestion",
+      description: "Our AI is learning to give you the perfect cut! For now, explore styles and try them on.",
+      link: "/hairstyle-suggestion", // Links to the try-on page; AI specific part is conceptual for now
       icon: SparklesIcon,
-      actionText: "Get Suggestions"
+      actionText: "Get Ideas"
     },
     {
       title: "Browse & Try Styles",
-      description: "Explore popular hairstyles, try them on (mock), and find barbers who offer them.",
-      link: "/hairstyle-suggestion", // This page hosts the popular styles bank
+      description: "Explore our collection of popular hairstyles. Upload your photo, try them on virtually (mock), and find barbers who can bring your new look to life.",
+      link: "/hairstyle-suggestion",
       icon: Grid,
       actionText: "Explore Styles"
     },
@@ -83,7 +83,7 @@ export default function HomePage() {
               <Link href="/hairstyle-suggestion">
                 <span>
                   <SparklesIcon className="mr-3 h-6 w-6" />
-                  AI Hairstyle Suggestion
+                  Virtual Style Try-On
                 </span>
               </Link>
             </Button>
@@ -181,11 +181,11 @@ export default function HomePage() {
             <div className="p-3 bg-primary/10 rounded-full w-fit mb-3">
                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
             </div>
-            <CardTitle className="font-headline text-2xl">AI Suggestions</CardTitle>
+            <CardTitle className="font-headline text-2xl">Style Ideas</CardTitle>
           </CardHeader>
           <CardContent>
             <CardDescription>
-              Get smart hairstyle suggestions based on your face shape and style preferences.
+              Explore popular styles and visualize them on yourself before you book.
             </CardDescription>
           </CardContent>
         </Card>
@@ -231,3 +231,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+    
