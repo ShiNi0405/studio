@@ -7,41 +7,22 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowRight, Loader2, Sparkles, Image as ImageIcon, Wand2, Camera, UploadCloud, RotateCcw, Eye } from 'lucide-react';
+import { ArrowRight, Loader2, ImageIcon, Camera, UploadCloud, RotateCcw, Eye, User, Users, Palette } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { ALL_HAIRCUT_OPTIONS, MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/config/hairstyleOptions';
-
-interface MockDiagnoseFaceSuggestHairstyleOutput {
-  detectedFaceShape: string;
-  suggestedHairstyleName: string; 
-  suggestedHairstyleDescription: string;
-  hairstyleVisualizationImagePrompt: string; 
-  haircutOptionId?: string; 
-}
-
-const styleTypes = ["Casual", "Trendy", "Professional", "Sporty", "Elegant", "Edgy", "Vintage", "Low-maintenance"];
-
-// Use the imported options for the popular styles display, excluding custom ones
-const popularMenStyles: HaircutOptionConfig[] = MENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
-const popularWomenStyles: HaircutOptionConfig[] = WOMENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
+import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/config/hairstyleOptions';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
-export default function HairstyleSuggestionPage() {
+export default function HairstyleTryOnPage() {
   const router = useRouter();
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [userPhotoDataUri, setUserPhotoDataUri] = useState<string | null>(null);
-  const [selectedStyleType, setSelectedStyleType] = useState<string | undefined>(undefined);
   
-  const [aiSuggestion, setAiSuggestion] = useState<MockDiagnoseFaceSuggestHairstyleOutput | null>(null);
-  const [loadingAISuggestion, setLoadingAISuggestion] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-
   const [generatedTryOnImageURL, setGeneratedTryOnImageURL] = useState<string | null>(null);
   const [currentTryOnStyleName, setCurrentTryOnStyleName] = useState<string | null>(null); 
   const [currentTryOnOptionId, setCurrentTryOnOptionId] = useState<string | null>(null); 
@@ -51,13 +32,16 @@ export default function HairstyleSuggestionPage() {
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
+  // Use the imported options for the popular styles display, excluding custom ones
+  const popularMenStyles: HaircutOptionConfig[] = MENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
+  const popularWomenStyles: HaircutOptionConfig[] = WOMENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         setUserPhotoDataUri(e.target?.result as string);
-        setAiSuggestion(null);
         setGeneratedTryOnImageURL(null);
         setCurrentTryOnStyleName(null);
         setCurrentTryOnOptionId(null);
@@ -80,7 +64,6 @@ export default function HairstyleSuggestionPage() {
   const startWebcam = useCallback(async () => {
     setShowWebcam(true); 
     setUserPhotoDataUri(null); 
-    setAiSuggestion(null);
     setGeneratedTryOnImageURL(null);
     setCurrentTryOnStyleName(null);
     setCurrentTryOnOptionId(null);
@@ -128,7 +111,6 @@ export default function HairstyleSuggestionPage() {
       context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
       const dataUri = canvas.toDataURL('image/png');
       setUserPhotoDataUri(dataUri);
-      setAiSuggestion(null);
       setGeneratedTryOnImageURL(null);
       setCurrentTryOnStyleName(null);
       setCurrentTryOnOptionId(null);
@@ -136,38 +118,6 @@ export default function HairstyleSuggestionPage() {
     }
   };
   
-  const handleGetAISuggestion = async () => {
-    if (!userPhotoDataUri || !selectedStyleType) {
-      toast({ title: "Missing Information", description: "Please provide a photo and select a style type.", variant: "destructive" });
-      return;
-    }
-    setLoadingAISuggestion(true);
-    setAiError(null);
-    setAiSuggestion(null);
-    setGeneratedTryOnImageURL(null); 
-    setCurrentTryOnStyleName(null);
-    setCurrentTryOnOptionId(null);
-
-    setTimeout(() => {
-      const compatibleOptions = ALL_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
-      const randomOption = compatibleOptions[Math.floor(Math.random() * compatibleOptions.length)] || ALL_HAIRCUT_OPTIONS[0];
-      const suggestedName = randomOption.name; 
-      
-      const mockResult: MockDiagnoseFaceSuggestHairstyleOutput = {
-        detectedFaceShape: ["Oval", "Round", "Square", "Heart"][Math.floor(Math.random() * 4)],
-        suggestedHairstyleName: suggestedName,
-        suggestedHairstyleDescription: `This is a mock description for a ${suggestedName}. It's designed for a ${selectedStyleType.toLowerCase()} vibe, offering a stylish yet manageable look.`,
-        hairstyleVisualizationImagePrompt: `photorealistic image of a ${suggestedName} hairstyle, ${selectedStyleType} style`,
-        haircutOptionId: randomOption.id, 
-      };
-      setAiSuggestion(mockResult);
-      setCurrentTryOnStyleName(mockResult.suggestedHairstyleName);
-      setCurrentTryOnOptionId(mockResult.haircutOptionId || null);
-      toast({ title: "AI Suggestion Ready!", description: `Our AI stylist (mock) thinks a ${mockResult.suggestedHairstyleName} would look great!`});
-      setLoadingAISuggestion(false);
-    }, 2000); 
-  };
-
   const handleGenerateTryOnImage = async (hairstyleName: string, optionId?: string | null) => {
     if (!userPhotoDataUri) {
       toast({ title: "Missing Photo", description: "Please provide your photo first to visualize a hairstyle.", variant: "destructive" });
@@ -182,272 +132,212 @@ export default function HairstyleSuggestionPage() {
     setCurrentTryOnStyleName(hairstyleName); 
     setCurrentTryOnOptionId(optionId || null);
 
-    if (aiSuggestion && aiSuggestion.suggestedHairstyleName !== hairstyleName) {
-      setAiSuggestion(null);
-    }
-
     setTimeout(() => {
-      const placeholderUrl = `https://placehold.co/400x400.png?text=Try-On:${hairstyleName.substring(0,10).replace(/\s/g,'+')}&font=lora`;
+      // Use a more descriptive placeholder text for mock image
+      const placeholderText = `Try-On:\n${hairstyleName.substring(0,20).replace(/\s/g,'+')}`;
+      const placeholderUrl = `https://placehold.co/400x400.png?text=${encodeURIComponent(placeholderText)}&font=lora`;
       setGeneratedTryOnImageURL(placeholderUrl);
       toast({ title: "Visualization Ready!", description: `Here's how a ${hairstyleName} might look on you (mock image).` });
       setLoadingTryOnImage(false);
-    }, 3000); 
+    }, 2500); 
   };
 
-  const handleBookStyle = () => {
-    const styleToBook = currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName;
-    const optionIdToBook = currentTryOnOptionId || aiSuggestion?.haircutOptionId;
-
-    if (!styleToBook) {
-        toast({title: "No style selected", description: "Please select or get a style suggestion to book.", variant: "destructive"});
+  const handleBookTryOnStyle = () => {
+    if (!currentTryOnStyleName) {
+        toast({title: "No style selected for try-on", description: "Please try on a style first.", variant: "destructive"});
         return;
     }
     
-    let queryString = `style=${encodeURIComponent(styleToBook)}`;
-    if (optionIdToBook) {
-        queryString += `&haircutOptionId=${encodeURIComponent(optionIdToBook)}`;
+    let queryString = `style=${encodeURIComponent(currentTryOnStyleName)}`;
+    if (currentTryOnOptionId) {
+        queryString += `&haircutOptionId=${encodeURIComponent(currentTryOnOptionId)}`;
     }
     router.push(`/barbers?${queryString}`);
   };
 
-  const clearPhotoAndSuggestions = () => {
+  const handleBookDirectStyle = (styleName: string, optionId: string) => {
+    let queryString = `style=${encodeURIComponent(styleName)}`;
+    queryString += `&haircutOptionId=${encodeURIComponent(optionId)}`;
+    router.push(`/barbers?${queryString}`);
+  }
+
+  const clearPhotoAndTryOn = () => {
     setUserPhotoDataUri(null);
-    setAiSuggestion(null);
     setGeneratedTryOnImageURL(null);
     setCurrentTryOnStyleName(null);
     setCurrentTryOnOptionId(null);
-    setAiError(null);
     if(showWebcam) stopWebcam();
   }
   
-  const activeStyleNameForActions = currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName;
 
   return (
-    <div className="max-w-4xl mx-auto py-8 space-y-12">
+    <div className="max-w-5xl mx-auto py-8 space-y-10">
       <Card className="shadow-xl overflow-hidden">
         <CardHeader className="bg-muted/30 p-6">
-          <CardTitle className="text-3xl font-headline flex items-center"><Wand2 className="w-8 h-8 mr-3 text-primary"/>AI Hairstyle Advisor</CardTitle>
-          <CardDescription>Upload your photo or use your webcam, select your style vibe, and let our AI suggest and visualize your next look! Or, try on popular styles.</CardDescription>
+          <CardTitle className="text-3xl font-headline flex items-center"><Palette className="w-8 h-8 mr-3 text-primary"/>Virtual Hairstyle Try-On</CardTitle>
+          <CardDescription>Upload your photo or use your webcam to see how different popular hairstyles might look on you. Then, find a barber who can make it real!</CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           
-          <div className="space-y-4">
-            <Label className="text-md font-semibold">Step 1: Your Photo</Label>
-            {!userPhotoDataUri && !showWebcam && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button variant="outline" onClick={() => document.getElementById('photoUpload')?.click()} className="py-6 text-base">
-                        <UploadCloud className="mr-2 h-5 w-5"/> Upload Photo
-                    </Button>
-                    <Input type="file" id="photoUpload" accept="image/*" onChange={handleFileChange} className="hidden" />
-                    <Button variant="outline" onClick={startWebcam} className="py-6 text-base">
-                        <Camera className="mr-2 h-5 w-5"/> Use Webcam
-                    </Button>
+          <div className="grid md:grid-cols-2 gap-6 items-start">
+            {/* Photo Upload and Display Section */}
+            <div className="space-y-4">
+              <Label className="text-md font-semibold block">Step 1: Provide Your Photo</Label>
+              {!userPhotoDataUri && !showWebcam && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Button variant="outline" onClick={() => document.getElementById('photoUpload')?.click()} className="py-6 text-base">
+                          <UploadCloud className="mr-2 h-5 w-5"/> Upload Photo
+                      </Button>
+                      <Input type="file" id="photoUpload" accept="image/*" onChange={handleFileChange} className="hidden" />
+                      <Button variant="outline" onClick={startWebcam} className="py-6 text-base">
+                          <Camera className="mr-2 h-5 w-5"/> Use Webcam
+                      </Button>
+                  </div>
+              )}
+              
+              {showWebcam && !userPhotoDataUri && (
+                  <Card className="p-4 border">
+                      <CardTitle className="text-lg mb-2">Webcam Preview</CardTitle>
+                      <video ref={videoRef} className="w-full aspect-video rounded-md bg-slate-200" autoPlay playsInline muted />
+                      {hasCameraPermission === false && (
+                          <Alert variant="destructive" className="mt-2">
+                              <AlertTitle>Camera Access Denied</AlertTitle>
+                              <AlertDescription>Please enable camera permissions in your browser settings to use the webcam. You might need to refresh the page after enabling.</AlertDescription>
+                          </Alert>
+                      )}
+                      {hasCameraPermission === null && !cameraStream && ( 
+                          <Alert variant="default" className="mt-2">
+                              <AlertTitle>Requesting Camera</AlertTitle>
+                              <AlertDescription>Attempting to access your webcam. Please allow permission when prompted.</AlertDescription>
+                          </Alert>
+                      )}
+                      <div className="mt-4 flex gap-2">
+                          <Button onClick={capturePhoto} disabled={!cameraStream || hasCameraPermission !== true}>Capture Photo</Button>
+                          <Button variant="outline" onClick={stopWebcam}>Close Webcam</Button>
+                      </div>
+                  </Card>
+              )}
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+              {userPhotoDataUri && (
+                <div className="text-center space-y-3">
+                  <p className="font-medium text-muted-foreground">Your Photo:</p>
+                  <Image src={userPhotoDataUri} alt="Your photo" data-ai-hint="user portrait" width={250} height={250} className="rounded-lg mx-auto shadow-md aspect-square object-cover" />
+                  <Button variant="outline" size="sm" onClick={clearPhotoAndTryOn}><RotateCcw className="mr-2 h-4 w-4"/>Change Photo / Reset</Button>
                 </div>
-            )}
-            
-            {showWebcam && !userPhotoDataUri && (
-                <Card className="p-4">
-                    <CardTitle className="text-lg mb-2">Webcam Preview</CardTitle>
-                    <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay playsInline muted />
-                    {hasCameraPermission === false && (
-                        <Alert variant="destructive" className="mt-2">
-                            <AlertTitle>Camera Access Denied</AlertTitle>
-                            <AlertDescription>Please enable camera permissions in your browser settings to use the webcam. You might need to refresh the page after enabling.</AlertDescription>
-                        </Alert>
-                    )}
-                    {hasCameraPermission === null && !cameraStream && ( 
-                        <Alert variant="default" className="mt-2">
-                            <AlertTitle>Requesting Camera</AlertTitle>
-                            <AlertDescription>Attempting to access your webcam. Please allow permission when prompted.</AlertDescription>
-                        </Alert>
-                    )}
-                    <div className="mt-4 flex gap-2">
-                        <Button onClick={capturePhoto} disabled={!cameraStream || hasCameraPermission !== true}>Capture Photo</Button>
-                        <Button variant="outline" onClick={stopWebcam}>Close Webcam</Button>
-                    </div>
-                </Card>
-            )}
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
+              )}
+            </div>
 
-            {userPhotoDataUri && (
-              <div className="text-center space-y-2">
-                <Image src={userPhotoDataUri} alt="Your photo" data-ai-hint="user portrait" width={200} height={200} className="rounded-lg mx-auto shadow-md aspect-square object-cover" />
-                <Button variant="outline" size="sm" onClick={clearPhotoAndSuggestions}><RotateCcw className="mr-2 h-4 w-4"/>Change Photo / Reset</Button>
-              </div>
-            )}
-          </div>
-          
-          <div>
-            <Label htmlFor="style-type" className="text-md font-semibold">Step 2: Preferred Style Vibe (for AI Suggestion)</Label>
-            <Select value={selectedStyleType} onValueChange={setSelectedStyleType} disabled={!userPhotoDataUri}>
-              <SelectTrigger id="style-type" className="mt-1">
-                <SelectValue placeholder="Select your style vibe" />
-              </SelectTrigger>
-              <SelectContent>
-                {styleTypes.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button
-            size="lg"
-            className="w-full py-3 text-base"
-            onClick={handleGetAISuggestion}
-            disabled={loadingAISuggestion || !userPhotoDataUri || !selectedStyleType}
-          >
-            {loadingAISuggestion && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-            <Sparkles className="mr-2 h-5 w-5" /> Get AI Hairstyle Suggestion
-          </Button>
-
-          {aiError && <p className="text-destructive text-center py-2 bg-destructive/10 rounded-md">{aiError}</p>}
-
-          {(aiSuggestion || generatedTryOnImageURL || loadingTryOnImage) && (
-            <Card className="bg-muted/50 p-4 sm:p-6 mt-6 shadow-md">
-                {aiSuggestion && (!generatedTryOnImageURL && !loadingTryOnImage || currentTryOnStyleName === aiSuggestion.suggestedHairstyleName) && ( 
-                    <>
-                        <CardTitle className="text-xl text-primary mb-1">AI Suggestion: {aiSuggestion.suggestedHairstyleName}</CardTitle>
-                        <CardDescription className="mb-3">Detected Face Shape (Mock): <span className="font-semibold">{aiSuggestion.detectedFaceShape}</span></CardDescription>
-                        <p className="text-foreground/90 mb-3">{aiSuggestion.suggestedHairstyleDescription}</p>
-                        <p className="text-xs text-muted-foreground italic break-words mb-3">For visualization reference (Mock): &quot;{aiSuggestion.hairstyleVisualizationImagePrompt}&quot;</p>
-                    </>
-                )}
-                {currentTryOnStyleName && (!aiSuggestion || aiSuggestion.suggestedHairstyleName !== currentTryOnStyleName) && !loadingTryOnImage &&(
-                     <CardTitle className="text-xl text-primary mb-3">Trying On: {currentTryOnStyleName}</CardTitle>
-                )}
-
-
-              <div className="grid md:grid-cols-2 gap-6 items-start">
-                <div className="space-y-3">
-                    {activeStyleNameForActions && (
-                         <Button 
-                            onClick={() => handleGenerateTryOnImage(activeStyleNameForActions, currentTryOnOptionId || aiSuggestion?.haircutOptionId)} 
-                            disabled={loadingTryOnImage || !userPhotoDataUri}
-                            className="w-full"
-                            variant="default"
-                          >
-                            {loadingTryOnImage && activeStyleNameForActions === currentTryOnStyleName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                            Visualize "{activeStyleNameForActions}" (Mock)
-                          </Button>
-                    )}
-                     <Button 
-                      onClick={handleBookStyle}
-                      className="w-full bg-accent hover:bg-accent/90"
-                      disabled={!activeStyleNameForActions}
-                    >
-                      Book "{activeStyleNameForActions}" <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </div>
-
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-200 flex items-center justify-center shadow-inner">
+            {/* Try-On Result Section */}
+            <div className="space-y-3">
+                 <Label className="text-md font-semibold block">Step 2: See Your (Mock) Try-On Here</Label>
+                 <Card className="relative aspect-square rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center shadow-inner min-h-[250px] p-4">
                   {loadingTryOnImage ? (
-                     <div className="text-center p-4">
+                     <div className="text-center">
                         <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-2" />
-                        <p className="text-sm text-muted-foreground">Generating your new look (mock)...</p>
+                        <p className="text-sm text-muted-foreground">Visualizing "{currentTryOnStyleName}" (mock)...</p>
                      </div>
                   ) : generatedTryOnImageURL ? (
-                    <Image src={generatedTryOnImageURL} alt={`AI try-on for: ${currentTryOnStyleName}`} data-ai-hint="hairstyle try on mock" fill style={{ objectFit: 'cover' }} />
+                    <>
+                      <Image src={generatedTryOnImageURL} alt={`AI try-on for: ${currentTryOnStyleName}`} data-ai-hint="hairstyle try on mock" fill style={{ objectFit: 'cover' }} />
+                       <CardFooter className="absolute bottom-0 left-0 right-0 bg-black/60 p-3">
+                           <Button 
+                            onClick={handleBookTryOnStyle}
+                            className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
+                            disabled={!currentTryOnStyleName}
+                            >
+                            Book This Look: "{currentTryOnStyleName}" <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                       </CardFooter>
+                    </>
                   ) : (
-                    <div className="text-center text-muted-foreground p-4">
-                      <ImageIcon className="h-12 w-12 mx-auto mb-2"/>
-                      <p className="text-sm">Your AI-generated hairstyle visualization (mock) will appear here.</p>
+                    <div className="text-center text-muted-foreground">
+                      <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50"/>
+                      <p className="text-sm">Your virtual try-on (mock) will appear here after you select a style below and click "Try On".</p>
+                      {!userPhotoDataUri && <p className="text-xs mt-1">(Please upload a photo first)</p>}
                     </div>
                   )}
-                </div>
-              </div>
-            </Card>
-          )}
+                </Card>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
       <div className="space-y-6 pt-6">
         <div className="text-center">
-          <h2 className="text-2xl font-headline text-primary">Or, Choose From Popular Styles</h2>
+          <h2 className="text-2xl font-headline text-primary">Step 3: Choose From Popular Styles</h2>
           <p className="text-muted-foreground">Browse these common hairstyles, try them on with your photo, and book directly.</p>
         </div>
-        <div className="mb-8">
-            <h3 className="text-xl font-semibold mb-4 text-center">Men&apos;s Styles</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {popularMenStyles.map((style) => (
-                <Card key={style.id} className="overflow-hidden hover:shadow-lg transition-shadow group flex flex-col">
-                <div className="relative aspect-video bg-gray-100">
-                    <Image 
-                        src={style.exampleImageUrl || `https://placehold.co/300x200.png?text=${encodeURIComponent(style.name.substring(0,10))}`}
-                        alt={style.name} 
-                        data-ai-hint={style.defaultImageHint || `men ${style.name} hairstyle`} 
-                        fill 
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="object-cover transition-transform group-hover:scale-105" 
-                    />
+        <Tabs defaultValue="men-options" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="men-options"><User className="mr-2"/>Men's Options ({popularMenStyles.length})</TabsTrigger>
+                <TabsTrigger value="women-options"><Users className="mr-2"/>Women's Options ({popularWomenStyles.length})</TabsTrigger>
+            </TabsList>
+            <TabsContent value="men-options" className="mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-8">
+                {popularMenStyles.map((style) => (
+                    <Card key={style.id} className="overflow-hidden hover:shadow-lg transition-shadow group flex flex-col items-center p-4 text-center">
+                        <div className="relative aspect-square w-3/4 mb-3 rounded-md overflow-hidden bg-slate-100">
+                            <Image 
+                                src={style.exampleImageUrl || `https://placehold.co/150x150.png?text=${encodeURIComponent(style.name.substring(0,10))}`}
+                                alt={style.name} 
+                                data-ai-hint={style.defaultImageHint || `men ${style.name} hairstyle`} 
+                                layout="fill"
+                                objectFit="cover"
+                                className="transition-transform group-hover:scale-105" 
+                            />
+                        </div>
+                        <CardTitle className="text-lg mb-3">{style.name}</CardTitle>
+                        <CardFooter className="p-0 w-full flex flex-col sm:flex-row gap-2">
+                            <Button 
+                                className="w-full flex-1" 
+                                variant="outline"
+                                onClick={() => handleGenerateTryOnImage(style.name, style.id)}
+                                disabled={!userPhotoDataUri || loadingTryOnImage}
+                            >
+                                <Eye className="mr-2 h-4 w-4"/> Try On (Mock)
+                            </Button>
+                            <Button className="w-full flex-1" onClick={() => handleBookDirectStyle(style.name, style.id)}>
+                            Book Style <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ))}
                 </div>
-                <CardHeader className="p-4">
-                    <CardTitle className="text-lg">{style.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 flex-grow">
-                    {/* Placeholder for potential short description if added to config */}
-                </CardContent>
-                <CardFooter className="p-4 pt-0 mt-auto flex flex-col sm:flex-row gap-2">
-                    <Button 
-                        className="w-full sm:flex-1" 
-                        variant="outline"
-                        onClick={() => handleGenerateTryOnImage(style.name, style.id)}
-                        disabled={!userPhotoDataUri || loadingTryOnImage}
-                    >
-                        <Eye className="mr-2 h-4 w-4"/> Try On (Mock)
-                    </Button>
-                    <Button className="w-full sm:flex-1" onClick={() => {
-                        setCurrentTryOnStyleName(style.name); 
-                        setCurrentTryOnOptionId(style.id);
-                        handleBookStyle();
-                    }}>
-                    Book Style <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </CardFooter>
-                </Card>
-            ))}
-            </div>
-        </div>
-        <div>
-            <h3 className="text-xl font-semibold mb-4 text-center">Women&apos;s Styles</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {popularWomenStyles.map((style) => (
-                <Card key={style.id} className="overflow-hidden hover:shadow-lg transition-shadow group flex flex-col">
-                <div className="relative aspect-video bg-gray-100">
-                    <Image 
-                        src={style.exampleImageUrl || `https://placehold.co/300x200.png?text=${encodeURIComponent(style.name.substring(0,10))}`}
-                        alt={style.name} 
-                        data-ai-hint={style.defaultImageHint || `women ${style.name} hairstyle`} 
-                        fill 
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                        className="object-cover transition-transform group-hover:scale-105" 
-                    />
+            </TabsContent>
+            <TabsContent value="women-options" className="mt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-8">
+                {popularWomenStyles.map((style) => (
+                    <Card key={style.id} className="overflow-hidden hover:shadow-lg transition-shadow group flex flex-col items-center p-4 text-center">
+                        <div className="relative aspect-square w-3/4 mb-3 rounded-md overflow-hidden bg-slate-100">
+                            <Image 
+                                src={style.exampleImageUrl || `https://placehold.co/150x150.png?text=${encodeURIComponent(style.name.substring(0,10))}`}
+                                alt={style.name} 
+                                data-ai-hint={style.defaultImageHint || `women ${style.name} hairstyle`} 
+                                layout="fill"
+                                objectFit="cover"
+                                className="transition-transform group-hover:scale-105" 
+                            />
+                        </div>
+                        <CardTitle className="text-lg mb-3">{style.name}</CardTitle>
+                        <CardFooter className="p-0 w-full flex flex-col sm:flex-row gap-2">
+                            <Button 
+                                className="w-full flex-1" 
+                                variant="outline"
+                                onClick={() => handleGenerateTryOnImage(style.name, style.id)}
+                                disabled={!userPhotoDataUri || loadingTryOnImage}
+                            >
+                                <Eye className="mr-2 h-4 w-4"/> Try On (Mock)
+                            </Button>
+                            <Button className="w-full flex-1" onClick={() => handleBookDirectStyle(style.name, style.id)}>
+                            Book Style <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                ))}
                 </div>
-                <CardHeader className="p-4">
-                    <CardTitle className="text-lg">{style.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 flex-grow">
-                     {/* Placeholder for potential short description if added to config */}
-                </CardContent>
-                <CardFooter className="p-4 pt-0 mt-auto flex flex-col sm:flex-row gap-2">
-                    <Button 
-                        className="w-full sm:flex-1" 
-                        variant="outline"
-                        onClick={() => handleGenerateTryOnImage(style.name, style.id)}
-                        disabled={!userPhotoDataUri || loadingTryOnImage}
-                    >
-                        <Eye className="mr-2 h-4 w-4"/> Try On (Mock)
-                    </Button>
-                    <Button className="w-full sm:flex-1" onClick={() => {
-                        setCurrentTryOnStyleName(style.name); 
-                        setCurrentTryOnOptionId(style.id);
-                        handleBookStyle();
-                    }}>
-                    Book Style <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                </CardFooter>
-                </Card>
-            ))}
-            </div>
-        </div>
+            </TabsContent>
+        </Tabs>
       </div>
        <div className="text-center mt-12">
          <Button variant="link" onClick={() => router.push('/')}>Back to Home</Button>
@@ -455,4 +345,3 @@ export default function HairstyleSuggestionPage() {
     </div>
   );
 }
-
