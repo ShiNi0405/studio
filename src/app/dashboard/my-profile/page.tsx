@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import Link from 'next/link';
-import { ChevronLeft, Loader2, AlertCircle, Save, PlusCircle, Trash2, DollarSign } from 'lucide-react';
+import { ChevronLeft, Loader2, AlertCircle, Save, PlusCircle, Trash2, DollarSign, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const serviceItemSchema = z.object({
@@ -45,6 +45,8 @@ const profileSchema = z.object({
   portfolioImageURLs: z.array(z.object({ url: z.string().url("Each portfolio image must be a valid URL.") })).optional(),
   servicesOffered: z.array(serviceItemSchema).optional(),
   location: z.string().optional(),
+  // latitude and longitude are not directly editable by the user in this form for now.
+  // They would typically be populated via geocoding the 'location' string.
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -115,6 +117,8 @@ export default function MyProfilePage() {
           portfolioImageURLs: data.portfolioImageURLs ? data.portfolioImageURLs.map(url => ({ url })) : [],
           servicesOffered: data.servicesOffered || [],
           location: data.location || '',
+          // latitude: data.latitude, // Not setting form default, as not directly editable
+          // longitude: data.longitude, // Not setting form default
         });
       } else {
         setError("Profile data not found.");
@@ -133,6 +137,11 @@ export default function MyProfilePage() {
     try {
       const userDocRef = doc(db, 'users', user.uid);
 
+      // Fetch existing lat/lng if they exist, so we don't overwrite them with undefined
+      // if geocoding was done externally or in a future step.
+      const currentDocSnap = await getDoc(userDocRef);
+      const currentData = currentDocSnap.exists() ? currentDocSnap.data() as Barber : {};
+
       const updateData: Partial<Barber> = {
         displayName: values.displayName,
         bio: values.bio,
@@ -142,13 +151,22 @@ export default function MyProfilePage() {
         photoURL: values.photoURL,
         portfolioImageURLs: values.portfolioImageURLs ? values.portfolioImageURLs.map(item => item.url) : [],
         servicesOffered: values.servicesOffered?.map(service => ({
-            id: service.id || `service-${Date.now()}-${Math.random().toString(36).substring(2,7)}`, // ensure ID
+            id: service.id || `service-${Date.now()}-${Math.random().toString(36).substring(2,7)}`,
             name: service.name,
             price: Number(service.price),
             duration: service.duration ? Number(service.duration) : undefined
         })) || [],
         location: values.location,
+        // Preserve existing lat/lng if geocoding is handled elsewhere or later
+        latitude: currentData.latitude,
+        longitude: currentData.longitude,
       };
+      // In a future step, if you implement geocoding, you would:
+      // 1. Take `values.location`.
+      // 2. Call a geocoding service (e.g., Google Geocoding API).
+      // 3. Get latitude and longitude from the geocoding response.
+      // 4. Set `updateData.latitude` and `updateData.longitude` with these values.
+      // For now, we are only saving the textual location.
 
       await updateDoc(userDocRef, updateData);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
@@ -221,9 +239,12 @@ export default function MyProfilePage() {
                 name="location"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Location / Area</FormLabel>
-                    <FormControl><Input placeholder="e.g., Kuala Lumpur City Centre, Petaling Jaya SS2" {...field} /></FormControl>
-                     <FormDescription>Help customers find you by specifying your general location.</FormDescription>
+                    <FormLabel className="flex items-center">
+                      <MapPin className="w-4 h-4 mr-2 text-muted-foreground" />
+                      Location / Address
+                    </FormLabel>
+                    <FormControl><Input placeholder="e.g., 123 Jalan Ampang, Kuala Lumpur" {...field} /></FormControl>
+                     <FormDescription>Your shop's address. This will be used for future map features (geocoding not yet implemented).</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -400,3 +421,4 @@ export default function MyProfilePage() {
     </div>
   );
 }
+

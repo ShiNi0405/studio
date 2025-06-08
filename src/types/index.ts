@@ -32,7 +32,9 @@ export interface Barber extends BaseUser {
   subscriptionActive?: boolean;
   portfolioImageURLs?: string[];
   servicesOffered?: ServiceItem[];
-  location?: string; // For potential "nearby" feature
+  location?: string; // For textual address, e.g., "Kuala Lumpur City Centre"
+  latitude?: number; // For future geocoding
+  longitude?: number; // For future geocoding
 }
 
 export type AppUser = Customer | Barber;
@@ -72,3 +74,4 @@ export interface Review {
   comment: string;
   createdAt: Timestamp;
 }
+
