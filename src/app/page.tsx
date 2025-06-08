@@ -73,14 +73,18 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
             <Button size="lg" className="w-full text-lg py-8" asChild>
               <Link href="/barbers">
-                <Search className="mr-3 h-6 w-6" />
-                Find a Barber
+                <span>
+                  <Search className="mr-3 h-6 w-6" />
+                  Find a Barber
+                </span>
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
               <Link href="/hairstyle-suggestion">
-                <SparklesIcon className="mr-3 h-6 w-6" />
-                AI Hairstyle Suggestion
+                <span>
+                  <SparklesIcon className="mr-3 h-6 w-6" />
+                  AI Hairstyle Suggestion
+                </span>
               </Link>
             </Button>
           </div>
@@ -116,20 +120,26 @@ export default function HomePage() {
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <Button size="lg" className="w-full text-lg py-8" asChild>
               <Link href="/dashboard/my-profile">
-                <UserCog className="mr-3 h-6 w-6" />
-                Manage My Profile
+                <span>
+                  <UserCog className="mr-3 h-6 w-6" />
+                  Manage My Profile
+                </span>
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
               <Link href="/dashboard/booking-requests">
-                <CalendarClock className="mr-3 h-6 w-6" />
-                Booking Requests
+                <span>
+                  <CalendarClock className="mr-3 h-6 w-6" />
+                  Booking Requests
+                </span>
               </Link>
             </Button>
              <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-1 lg:col-span-1" asChild> {/* Adjusted span for better layout with 3 cols */}
                 <Link href="/dashboard/my-reviews">
-                    <StarIcon className="mr-3 h-6 w-6"/>
-                    View My Reviews
+                    <span>
+                        <StarIcon className="mr-3 h-6 w-6"/>
+                        View My Reviews
+                    </span>
                 </Link>
             </Button>
           </div>
@@ -194,7 +204,9 @@ export default function HomePage() {
                 </p>
                 <Button variant="secondary" size="lg" className="mt-6 text-primary" asChild>
                   <Link href="/signup?role=barber">
-                    Join as a Barber <ArrowRight className="ml-2 h-5 w-5" />
+                    <span>
+                      Join as a Barber <ArrowRight className="ml-2 h-5 w-5" />
+                    </span>
                   </Link>
                 </Button>
               </div>
