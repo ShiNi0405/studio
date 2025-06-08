@@ -6,5 +6,5 @@ config();
 // import '@/ai/flows/suggest-time-slots.ts'; 
 
 // New flows for hairstyle suggestion and image generation
-import '@/ai/flows/suggest-hairstyle-flow';
-import '@/ai/flows/generate-hairstyle-image-flow';
+import '@/ai/flows/diagnose-face-suggest-hairstyle-flow';
+import '@/ai/flows/generate-hairstyle-tryon-flow';
