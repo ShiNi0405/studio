@@ -29,20 +29,20 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import type { Barber, Customer, ServiceItem } from '@/types';
+import type { Barber, Customer, OfferedHaircut } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { createBookingAction } from '@/app/actions/bookingActions';
 import { useSearchParams } from 'next/navigation';
 
 const bookingFormSchema = z.object({
-  style: z.string().optional(),
-  serviceName: z.string().optional(), // Name of the service from barber's list
+  style: z.string().optional(), // For AI suggested or custom styles
+  serviceId: z.string().optional(), // ID of the OfferedHaircut chosen
   date: z.date({ required_error: "A date is required." }),
   time: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Invalid time format. Use HH:MM (e.g., 14:30)."}),
   notes: z.string().max(500, "Notes cannot exceed 500 characters.").optional(),
-}).refine(data => data.style || data.serviceName, {
-  message: "Either a style or a service must be selected/provided.",
-  path: ["serviceName"],
+}).refine(data => data.style || data.serviceId, {
+  message: "Either a style description or a specific service must be provided/selected.",
+  path: ["serviceId"], // Point error to serviceId if neither is present
 });
 
 
@@ -59,14 +59,16 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const searchParams = useSearchParams();
   const suggestedStyleFromQuery = searchParams.get('style');
-  const [selectedServiceDetails, setSelectedServiceDetails] = useState<ServiceItem | null>(null);
+  
+  // Store the full selected OfferedHaircut object to access its price/duration
+  const [selectedOfferedHaircut, setSelectedOfferedHaircut] = useState<OfferedHaircut | null>(null);
 
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       style: suggestedStyleFromQuery || undefined,
-      serviceName: suggestedStyleFromQuery ? undefined : "",
+      serviceId: suggestedStyleFromQuery ? undefined : "",
       time: "",
       notes: "",
     },
@@ -75,19 +77,20 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
   useEffect(() => {
     if (suggestedStyleFromQuery) {
       form.setValue('style', suggestedStyleFromQuery);
-      form.setValue('serviceName', undefined);
-      setSelectedServiceDetails(null);
+      form.setValue('serviceId', undefined); // Clear serviceId if a style is suggested
+      setSelectedOfferedHaircut(null); // Clear selected service details
     }
   }, [suggestedStyleFromQuery, form]);
 
-  const handleServiceChange = (serviceName: string) => {
-    const service = barber.servicesOffered?.find(s => s.name === serviceName);
+  const handleServiceChange = (serviceIdValue: string) => {
+    const service = barber.servicesOffered?.find(s => s.id === serviceIdValue);
     if (service) {
-        setSelectedServiceDetails(service);
-        form.setValue('serviceName', serviceName);
-        form.setValue('style', undefined); // Clear style if service is chosen
+        setSelectedOfferedHaircut(service);
+        form.setValue('serviceId', serviceIdValue);
+        form.setValue('style', undefined); // Clear custom style if a predefined service is chosen
     } else {
-        setSelectedServiceDetails(null);
+        setSelectedOfferedHaircut(null);
+        // form.setValue('serviceId', undefined); // if serviceIdValue is empty string for placeholder
     }
   };
 
@@ -106,10 +109,10 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         barberName: barber.displayName || 'Barber',
         appointmentDateTime: appointmentDateTime,
         time: data.time,
-        style: data.style || undefined,
-        serviceName: data.style ? undefined : data.serviceName,
-        servicePrice: data.style ? undefined : selectedServiceDetails?.price,
-        serviceDuration: data.style ? undefined : selectedServiceDetails?.duration,
+        style: data.style || undefined, // Custom style description
+        serviceName: selectedOfferedHaircut?.haircutName, // Name from selected OfferedHaircut
+        servicePrice: selectedOfferedHaircut?.price,
+        serviceDuration: selectedOfferedHaircut?.duration,
         notes: data.notes || '',
         status: 'pending' as const,
       };
@@ -117,15 +120,15 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       const result = await createBookingAction(bookingPayload);
 
       if (result.success) {
-        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${data.style || data.serviceName} on ${format(data.date, "PPP")} at ${data.time} has been sent.` });
+        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${data.style || selectedOfferedHaircut?.haircutName} on ${format(data.date, "PPP")} at ${data.time} has been sent.` });
         form.reset({
             style: suggestedStyleFromQuery || undefined,
-            serviceName: suggestedStyleFromQuery ? undefined : "",
+            serviceId: suggestedStyleFromQuery ? undefined : "",
             time: "",
             notes: "",
             date: undefined,
         });
-        setSelectedServiceDetails(null);
+        setSelectedOfferedHaircut(null);
       } else {
         throw new Error(result.error || "Failed to create booking.");
       }
@@ -145,8 +148,9 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {suggestedStyleFromQuery && (
           <FormItem>
-            <FormLabel className="text-lg font-semibold">Requested Style</FormLabel>
+            <FormLabel className="text-lg font-semibold">Requested Custom Style</FormLabel>
             <p className="text-md p-3 bg-muted rounded-md">{suggestedStyleFromQuery}</p>
+            {/* Hidden field to pass the style value if it comes from query params */}
             <FormField
               control={form.control}
               name="style"
@@ -158,23 +162,26 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         {!suggestedStyleFromQuery && servicesAvailable && (
            <FormField
             control={form.control}
-            name="serviceName"
+            name="serviceId" // Now this field stores the ID of the OfferedHaircut
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Service</FormLabel>
-                <Select onValueChange={(value) => {
-                    field.onChange(value);
-                    handleServiceChange(value);
-                }} defaultValue={field.value}>
+                <FormLabel>Select a Haircut/Service</FormLabel>
+                <Select 
+                    onValueChange={(value) => {
+                        field.onChange(value); // RHF updates with the service ID
+                        handleServiceChange(value); // Custom handler to set full service details
+                    }} 
+                    defaultValue={field.value}
+                >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a service" />
+                      <SelectValue placeholder="Select a haircut/service" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {barber.servicesOffered?.map(service => (
-                      <SelectItem key={service.id} value={service.name}>
-                        {service.name} - RM{service.price.toFixed(2)}
+                      <SelectItem key={service.id} value={service.id}>
+                        {service.haircutName} ({service.gender}) - RM{service.price.toFixed(2)}
                         {service.duration ? ` (${service.duration} min)` : ''}
                       </SelectItem>
                     ))}
@@ -185,8 +192,24 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             )}
           />
         )}
+
         {!suggestedStyleFromQuery && !servicesAvailable && (
-            <p className="text-sm text-muted-foreground">This barber has not listed any specific services yet. You can describe what you need in the notes, or book a general consultation style if available via AI suggestions.</p>
+             <FormField
+                control={form.control}
+                name="style"
+                render={({ field }) => (
+                <FormItem>
+                    <FormLabel>Describe Desired Style/Service</FormLabel>
+                    <FormControl>
+                    <Input placeholder="e.g., Men's classic cut, beard trim" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                    This barber hasn't listed specific services. Describe what you're looking for.
+                    </FormDescription>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
         )}
 
 
@@ -201,28 +224,15 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                   <FormControl>
                     <Button
                       variant={"outline"}
-                      className={cn(
-                        "w-full pl-3 text-left font-normal",
-                        !field.value && "text-muted-foreground"
-                      )}
+                      className={cn("w-full pl-3 text-left font-normal",!field.value && "text-muted-foreground")}
                     >
-                      {field.value ? (
-                        format(field.value, "PPP")
-                      ) : (
-                        <span>Pick a date</span>
-                      )}
+                      {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
                       <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                     </Button>
                   </FormControl>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={field.value}
-                    onSelect={field.onChange}
-                    disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) }
-                    initialFocus
-                  />
+                  <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) } initialFocus />
                 </PopoverContent>
               </Popover>
               <FormMessage />
@@ -252,20 +262,14 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             <FormItem>
               <FormLabel>Additional Notes (Optional)</FormLabel>
               <FormControl>
-                <Textarea
-                  placeholder="Any specific requests or information for the barber?"
-                  className="resize-none"
-                  {...field}
-                />
+                <Textarea placeholder="Any specific requests or information?" className="resize-none" {...field} />
               </FormControl>
-              <FormDescription>
-                Max 500 characters.
-              </FormDescription>
+              <FormDescription>Max 500 characters.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={isSubmitting || !form.watch('date') || !form.watch('time') || (!form.watch('style') && !form.watch('serviceName')) } className="w-full text-lg py-6">
+        <Button type="submit" disabled={isSubmitting || !form.watch('date') || !form.watch('time') || (!form.watch('style') && !form.watch('serviceId')) } className="w-full text-lg py-6">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Request Appointment
         </Button>

@@ -3,11 +3,25 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'customer' | 'barber';
 
-export interface ServiceItem {
-  id: string; // Unique ID for the service item, e.g., generated client-side
-  name: string;
+// This is the old ServiceItem, which will be replaced by OfferedHaircut for barbers.
+// It might still be useful if we have a generic concept of service elsewhere,
+// but for barber's profile, OfferedHaircut is more specific.
+// export interface ServiceItem {
+//   id: string; 
+//   name: string;
+//   price: number;
+//   duration?: number; 
+// }
+
+// New structure for haircuts offered by barbers
+export interface OfferedHaircut {
+  id: string; // Unique ID for this specific offering by the barber (e.g., for React keys)
+  haircutOptionId: string; // Reference to a general haircut definition (e.g., 'men-crew-cut')
+  haircutName: string; // Denormalized name like "Crew Cut" for display
+  gender: 'men' | 'women'; // Category
   price: number;
   duration?: number; // Duration in minutes
+  portfolioImageURLs?: string[]; // URLs specific to this barber's version of this haircut
 }
 
 export interface BaseUser {
@@ -26,15 +40,15 @@ export interface Customer extends BaseUser {
 export interface Barber extends BaseUser {
   role: 'barber';
   bio?: string;
-  specialties?: string[];
+  specialties?: string[]; // General specialties, can remain
   experienceYears?: number;
-  availability?: string; // JSON string: {"monday": ["09:00-12:00", "14:00-18:00"], ...}
+  availability?: string; // JSON string for general availability
   subscriptionActive?: boolean;
-  portfolioImageURLs?: string[];
-  servicesOffered?: ServiceItem[];
-  location?: string; // For textual address, e.g., "Kuala Lumpur City Centre"
-  latitude?: number; // For future geocoding
-  longitude?: number; // For future geocoding
+  // portfolioImageURLs?: string[]; // This will be removed, portfolio is now part of OfferedHaircut
+  servicesOffered?: OfferedHaircut[]; // Replaces the old ServiceItem[]
+  location?: string; 
+  latitude?: number; 
+  longitude?: number; 
 }
 
 export type AppUser = Customer | Barber;
@@ -54,11 +68,14 @@ export interface Booking {
   barberId: string;
   barberName: string;
   appointmentDateTime: Timestamp;
-  time: string;
-  style?: string; // If a custom style was booked
-  serviceName?: string; // Name of the service booked from barber's list
+  time: string; // HH:MM format
+  
+  // These fields relate to the specific service/haircut booked
+  style?: string; // Could be a custom request or AI suggested style name
+  serviceName?: string; // Name of the haircut/service from barber's offered list
   servicePrice?: number; // Price of the service at time of booking
   serviceDuration?: number; // Duration of the service at time of booking
+  
   notes?: string;
   status: BookingStatus;
   createdAt: Timestamp;
@@ -74,4 +91,3 @@ export interface Review {
   comment: string;
   createdAt: Timestamp;
 }
-
