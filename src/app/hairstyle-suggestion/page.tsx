@@ -10,13 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowRight, Loader2, Sparkles, Image as ImageIcon, Wand2, Camera, UploadCloud, RotateCcw } from 'lucide-react';
+import { ArrowRight, Loader2, Sparkles, Image as ImageIcon, Wand2, Camera, UploadCloud, RotateCcw, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-// Removed AI flow imports:
-// import { diagnoseFaceAndSuggestHairstyle, type DiagnoseFaceSuggestHairstyleOutput } from '@/ai/flows/diagnose-face-suggest-hairstyle-flow';
-// import { generateHairstyleTryOn, type GenerateHairstyleTryOnOutput } from '@/ai/flows/generate-hairstyle-tryon-flow';
 
-// Define mock output types locally if needed for structure, or use 'any' for simplicity in mock
+// Define mock output types locally
 interface MockDiagnoseFaceSuggestHairstyleOutput {
   detectedFaceShape: string;
   suggestedHairstyleName: string;
@@ -27,12 +24,12 @@ interface MockDiagnoseFaceSuggestHairstyleOutput {
 const styleTypes = ["Casual", "Trendy", "Professional", "Sporty", "Elegant", "Edgy", "Vintage", "Low-maintenance"];
 
 const predefinedHairstyles = [
-  { name: "Classic Crew Cut", imageHint: "crew cut classic", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { name: "Modern Quiff", imageHint: "quiff modern", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { name: "Textured Crop", imageHint: "textured crop", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { name: "Slick Back Undercut", imageHint: "slick back undercut", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { name: "Layered Bob", imageHint: "bob layered", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { name: "Pixie Cut", imageHint: "pixie edgy", imagePlaceholder: "https://placehold.co/300x200.png" },
+  { id: "crew-cut", name: "Classic Crew Cut", imageHint: "man crew cut", imagePlaceholder: "https://placehold.co/300x200.png" },
+  { id: "modern-quiff", name: "Modern Quiff", imageHint: "man modern quiff", imagePlaceholder: "https://placehold.co/300x200.png" },
+  { id: "textured-crop", name: "Textured Crop", imageHint: "woman textured crop", imagePlaceholder: "https://placehold.co/300x200.png" },
+  { id: "slick-back-undercut", name: "Slick Back Undercut", imageHint: "man slick back", imagePlaceholder: "https://placehold.co/300x200.png" },
+  { id: "layered-bob", name: "Layered Bob", imageHint: "woman layered bob", imagePlaceholder: "https://placehold.co/300x200.png" },
+  { id: "pixie-cut", name: "Pixie Cut", imageHint: "woman pixie cut", imagePlaceholder: "https://placehold.co/300x200.png" },
 ];
 
 
@@ -50,6 +47,7 @@ export default function HairstyleSuggestionPage() {
   const [aiError, setAiError] = useState<string | null>(null);
 
   const [generatedTryOnImageURL, setGeneratedTryOnImageURL] = useState<string | null>(null);
+  const [currentTryOnStyleName, setCurrentTryOnStyleName] = useState<string | null>(null);
   const [loadingTryOnImage, setLoadingTryOnImage] = useState(false);
 
   const [showWebcam, setShowWebcam] = useState(false);
@@ -62,9 +60,10 @@ export default function HairstyleSuggestionPage() {
       const reader = new FileReader();
       reader.onload = (e) => {
         setUserPhotoDataUri(e.target?.result as string);
-        setAiSuggestion(null);
-        setGeneratedTryOnImageURL(null);
-        setShowWebcam(false); 
+        setAiSuggestion(null); // Clear previous AI suggestion
+        setGeneratedTryOnImageURL(null); // Clear previous try-on image
+        setCurrentTryOnStyleName(null);
+        if (showWebcam) stopWebcam(); 
       };
       reader.readAsDataURL(file);
     }
@@ -75,9 +74,10 @@ export default function HairstyleSuggestionPage() {
     setUserPhotoDataUri(null); 
     setAiSuggestion(null);
     setGeneratedTryOnImageURL(null);
+    setCurrentTryOnStyleName(null);
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
         setHasCameraPermission(true);
         setCameraStream(stream);
         if (videoRef.current) {
@@ -109,12 +109,11 @@ export default function HairstyleSuggestionPage() {
   }, [cameraStream]);
 
   useEffect(() => {
+    // Ensure webcam is stopped if component unmounts or showWebcam becomes false
     return () => {
-      if (!showWebcam) {
         stopWebcam();
-      }
     };
-  }, [showWebcam, stopWebcam]);
+  }, [stopWebcam]);
 
 
   const capturePhoto = () => {
@@ -129,6 +128,7 @@ export default function HairstyleSuggestionPage() {
       setUserPhotoDataUri(dataUri);
       setAiSuggestion(null);
       setGeneratedTryOnImageURL(null);
+      setCurrentTryOnStyleName(null);
       stopWebcam(); 
     }
   };
@@ -142,8 +142,8 @@ export default function HairstyleSuggestionPage() {
     setAiError(null);
     setAiSuggestion(null);
     setGeneratedTryOnImageURL(null); 
+    setCurrentTryOnStyleName(null);
 
-    // Simulate AI call
     setTimeout(() => {
       const mockFaceShapes = ["Oval", "Round", "Square", "Heart"];
       const randomFaceShape = mockFaceShapes[Math.floor(Math.random() * mockFaceShapes.length)];
@@ -156,37 +156,53 @@ export default function HairstyleSuggestionPage() {
         hairstyleVisualizationImagePrompt: `photorealistic image of a ${suggestedName} hairstyle, suitable for ${randomFaceShape} face shape, ${selectedStyleType} style`,
       };
       setAiSuggestion(mockResult);
+      setCurrentTryOnStyleName(mockResult.suggestedHairstyleName); // Set this for the try-on button context
       toast({ title: "AI Suggestion Ready!", description: `Our AI stylist (mock) thinks a ${mockResult.suggestedHairstyleName} would look great!`});
       setLoadingAISuggestion(false);
-    }, 2000); // Simulate 2 second delay
+    }, 2000); 
   };
 
-  const handleGenerateTryOnImage = async () => {
-    if (!userPhotoDataUri || !aiSuggestion?.suggestedHairstyleName) {
-      toast({ title: "Missing Information", description: "Need a user photo and an AI hairstyle suggestion first.", variant: "destructive" });
+  const handleGenerateTryOnImage = async (hairstyleName: string) => {
+    if (!userPhotoDataUri) {
+      toast({ title: "Missing Photo", description: "Please provide your photo first to visualize a hairstyle.", variant: "destructive" });
       return;
     }
+    if (!hairstyleName) {
+        toast({ title: "Missing Hairstyle", description: "No hairstyle specified for visualization.", variant: "destructive" });
+        return;
+    }
     setLoadingTryOnImage(true);
-    setGeneratedTryOnImageURL(null);
+    setGeneratedTryOnImageURL(null); // Clear previous image
+    setCurrentTryOnStyleName(hairstyleName); // Update current style being tried on
 
-    // Simulate AI call for try-on image
+    // If this try-on is for an AI suggested style, we might not need to clear aiSuggestion.
+    // If it's for a predefined style, aiSuggestion might not be relevant for this specific try-on.
+    // For simplicity, we're assuming the main visualization area shows the current "try-on" attempt.
+    // If this call comes from a predefined style, aiSuggestion might naturally be null or for a different style.
+    // Consider if `aiSuggestion` should be cleared if trying on a predefined style. For now, it's not explicitly cleared here.
+
     setTimeout(() => {
-      // Use a more dynamic placeholder to give a sense of change
-      const placeholderUrl = `https://placehold.co/400x400.png?text=Try-On:${aiSuggestion.suggestedHairstyleName.substring(0,10).replace(/\s/g,'+')}&font=lora`;
+      const placeholderUrl = `https://placehold.co/400x400.png?text=Try-On:${hairstyleName.substring(0,10).replace(/\s/g,'+')}&font=lora`;
       setGeneratedTryOnImageURL(placeholderUrl);
-      toast({ title: "Visualization Ready!", description: "Here's how the suggested style might look on you (mock image)." });
+      toast({ title: "Visualization Ready!", description: `Here's how a ${hairstyleName} might look on you (mock image).` });
       setLoadingTryOnImage(false);
-    }, 3000); // Simulate 3 second delay
+    }, 3000); 
   };
 
   const handleBookStyle = (styleName: string) => {
+    if (!styleName) {
+        toast({title: "No style selected", description: "Please select or get a style suggestion to book.", variant: "destructive"});
+        return;
+    }
     router.push(`/barbers?style=${encodeURIComponent(styleName)}`);
   };
 
-  const clearPhoto = () => {
+  const clearPhotoAndSuggestions = () => {
     setUserPhotoDataUri(null);
     setAiSuggestion(null);
     setGeneratedTryOnImageURL(null);
+    setCurrentTryOnStyleName(null);
+    setAiError(null);
     if(showWebcam) stopWebcam();
   }
 
@@ -195,12 +211,12 @@ export default function HairstyleSuggestionPage() {
       <Card className="shadow-xl overflow-hidden">
         <CardHeader className="bg-muted/30 p-6">
           <CardTitle className="text-3xl font-headline flex items-center"><Wand2 className="w-8 h-8 mr-3 text-primary"/>AI Hairstyle Advisor</CardTitle>
-          <CardDescription>Upload your photo or use your webcam, select your style vibe, and let our AI suggest and visualize your next look!</CardDescription>
+          <CardDescription>Upload your photo or use your webcam, select your style vibe, and let our AI suggest and visualize your next look! Or, try on popular styles.</CardDescription>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           
           <div className="space-y-4">
-            <Label className="text-md font-semibold">Your Photo</Label>
+            <Label className="text-md font-semibold">Step 1: Your Photo</Label>
             {!userPhotoDataUri && !showWebcam && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Button variant="outline" onClick={() => document.getElementById('photoUpload')?.click()} className="py-6 text-base">
@@ -216,22 +232,21 @@ export default function HairstyleSuggestionPage() {
             {showWebcam && !userPhotoDataUri && (
                 <Card className="p-4">
                     <CardTitle className="text-lg mb-2">Webcam Preview</CardTitle>
-                    {/* Always render video tag to avoid race conditions with srcObject, hide with CSS if needed or manage visibility with parent */}
                     <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay playsInline muted />
-                    {hasCameraPermission === false && ( // Only show if explicitly denied or error
+                    {hasCameraPermission === false && (
                         <Alert variant="destructive" className="mt-2">
                             <AlertTitle>Camera Access Denied</AlertTitle>
                             <AlertDescription>Please enable camera permissions in your browser settings to use the webcam.</AlertDescription>
                         </Alert>
                     )}
-                     {hasCameraPermission === null && ( // Initial state or if API not supported by browser
+                     {hasCameraPermission === null && !cameraStream && ( 
                         <Alert variant="default" className="mt-2">
                             <AlertTitle>Requesting Camera</AlertTitle>
                             <AlertDescription>Attempting to access your webcam. Please allow permission when prompted.</AlertDescription>
                         </Alert>
                     )}
                     <div className="mt-4 flex gap-2">
-                        <Button onClick={capturePhoto} disabled={hasCameraPermission !== true}>Capture Photo</Button>
+                        <Button onClick={capturePhoto} disabled={hasCameraPermission !== true || !cameraStream}>Capture Photo</Button>
                         <Button variant="outline" onClick={stopWebcam}>Close Webcam</Button>
                     </div>
                 </Card>
@@ -241,14 +256,14 @@ export default function HairstyleSuggestionPage() {
             {userPhotoDataUri && (
               <div className="text-center space-y-2">
                 <Image src={userPhotoDataUri} alt="Your photo" data-ai-hint="user portrait" width={200} height={200} className="rounded-lg mx-auto shadow-md aspect-square object-cover" />
-                <Button variant="outline" size="sm" onClick={clearPhoto}><RotateCcw className="mr-2 h-4 w-4"/>Change Photo</Button>
+                <Button variant="outline" size="sm" onClick={clearPhotoAndSuggestions}><RotateCcw className="mr-2 h-4 w-4"/>Change Photo / Reset</Button>
               </div>
             )}
           </div>
           
           <div>
-            <Label htmlFor="style-type" className="text-md font-semibold">Preferred Style Vibe</Label>
-            <Select value={selectedStyleType} onValueChange={setSelectedStyleType}>
+            <Label htmlFor="style-type" className="text-md font-semibold">Step 2: Preferred Style Vibe (for AI Suggestion)</Label>
+            <Select value={selectedStyleType} onValueChange={setSelectedStyleType} disabled={!userPhotoDataUri}>
               <SelectTrigger id="style-type" className="mt-1">
                 <SelectValue placeholder="Select your style vibe" />
               </SelectTrigger>
@@ -270,33 +285,39 @@ export default function HairstyleSuggestionPage() {
 
           {aiError && <p className="text-destructive text-center py-2 bg-destructive/10 rounded-md">{aiError}</p>}
 
-          {aiSuggestion && (
+          {/* Combined Display Area for AI Suggestion and Try-On Image */}
+          {(aiSuggestion || generatedTryOnImageURL || loadingTryOnImage) && (
             <Card className="bg-muted/50 p-4 sm:p-6 mt-6 shadow-md">
-              <CardTitle className="text-xl text-primary mb-1">AI Suggestion: {aiSuggestion.suggestedHairstyleName}</CardTitle>
-              <CardDescription className="mb-3">Detected Face Shape (Mock): <span className="font-semibold">{aiSuggestion.detectedFaceShape}</span></CardDescription>
-              
+                {aiSuggestion && !generatedTryOnImageURL && !loadingTryOnImage && ( // Only show AI text if no try-on image is active/loading
+                    <>
+                        <CardTitle className="text-xl text-primary mb-1">AI Suggestion: {aiSuggestion.suggestedHairstyleName}</CardTitle>
+                        <CardDescription className="mb-3">Detected Face Shape (Mock): <span className="font-semibold">{aiSuggestion.detectedFaceShape}</span></CardDescription>
+                        <p className="text-foreground/90 mb-3">{aiSuggestion.suggestedHairstyleDescription}</p>
+                        <p className="text-xs text-muted-foreground italic break-words mb-3">For visualization reference (Mock): &quot;{aiSuggestion.hairstyleVisualizationImagePrompt}&quot;</p>
+                    </>
+                )}
+
               <div className="grid md:grid-cols-2 gap-6 items-start">
                 <div className="space-y-3">
-                  <p className="text-foreground/90">{aiSuggestion.suggestedHairstyleDescription}</p>
-                  <p className="text-xs text-muted-foreground italic break-words">For visualization reference (Mock): &quot;{aiSuggestion.hairstyleVisualizationImagePrompt}&quot;</p>
-                  
-                  <div className="space-y-2 pt-2">
+                    {/* Buttons always relate to the currentTryOnStyleName if available, or AI suggestion if that's the context */}
+                    {(currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName) && (
+                         <Button 
+                            onClick={() => handleGenerateTryOnImage(currentTryOnStyleName || aiSuggestion!.suggestedHairstyleName)} 
+                            disabled={loadingTryOnImage || !userPhotoDataUri}
+                            className="w-full"
+                            variant="default"
+                          >
+                            {loadingTryOnImage && currentTryOnStyleName === (currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                            Visualize "{currentTryOnStyleName || aiSuggestion!.suggestedHairstyleName}" (Mock)
+                          </Button>
+                    )}
                      <Button 
-                      onClick={handleGenerateTryOnImage} 
-                      disabled={loadingTryOnImage || !userPhotoDataUri}
-                      className="w-full"
-                    >
-                      {loadingTryOnImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                      Visualize this Style on My Photo (Mock)
-                    </Button>
-                    <Button 
-                      onClick={() => handleBookStyle(aiSuggestion.suggestedHairstyleName)}
+                      onClick={() => handleBookStyle(currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName || "Selected Style")}
                       className="w-full bg-accent hover:bg-accent/90"
-                      variant="default"
+                      disabled={!(currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName)}
                     >
-                      Book "{aiSuggestion.suggestedHairstyleName}" <ArrowRight className="ml-2 h-4 w-4" />
+                      Book "{currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName || "Selected Style"}" <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
-                  </div>
                 </div>
 
                 <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-200 flex items-center justify-center shadow-inner">
@@ -306,11 +327,11 @@ export default function HairstyleSuggestionPage() {
                         <p className="text-sm text-muted-foreground">Generating your new look (mock)...</p>
                      </div>
                   ) : generatedTryOnImageURL ? (
-                    <Image src={generatedTryOnImageURL} alt={`AI try-on for: ${aiSuggestion.suggestedHairstyleName}`} data-ai-hint="hairstyle try on mock" fill style={{ objectFit: 'cover' }} />
+                    <Image src={generatedTryOnImageURL} alt={`AI try-on for: ${currentTryOnStyleName}`} data-ai-hint="hairstyle try on mock" fill style={{ objectFit: 'cover' }} />
                   ) : (
                     <div className="text-center text-muted-foreground p-4">
                       <ImageIcon className="h-12 w-12 mx-auto mb-2"/>
-                      <p className="text-sm">Your AI-generated hairstyle visualization (mock) will appear here.</p>
+                      <p className="text-sm">Your AI-generated hairstyle visualization (mock) will appear here once you generate or try on a style.</p>
                     </div>
                   )}
                 </div>
@@ -323,11 +344,11 @@ export default function HairstyleSuggestionPage() {
       <div className="space-y-6 pt-6">
         <div className="text-center">
           <h2 className="text-2xl font-headline text-primary">Or, Choose From Popular Styles</h2>
-          <p className="text-muted-foreground">Browse these common hairstyles and book one directly.</p>
+          <p className="text-muted-foreground">Browse these common hairstyles, try them on with your photo, and book directly.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {predefinedHairstyles.map((style) => (
-            <Card key={style.name} className="overflow-hidden hover:shadow-lg transition-shadow group">
+            <Card key={style.id} className="overflow-hidden hover:shadow-lg transition-shadow group flex flex-col">
               <div className="relative aspect-video bg-gray-100">
                 <Image 
                     src={style.imagePlaceholder} 
@@ -341,9 +362,23 @@ export default function HairstyleSuggestionPage() {
               <CardHeader className="p-4">
                 <CardTitle className="text-lg">{style.name}</CardTitle>
               </CardHeader>
-              <CardFooter className="p-4 pt-0">
-                <Button className="w-full" onClick={() => handleBookStyle(style.name)}>
-                  Book {style.name} <ArrowRight className="ml-2 h-4 w-4" />
+              <CardContent className="p-4 pt-0 flex-grow">
+                {/* Description for predefined styles can be added here if needed */}
+              </CardContent>
+              <CardFooter className="p-4 pt-0 mt-auto flex flex-col sm:flex-row gap-2">
+                <Button 
+                    className="w-full sm:w-1/2" 
+                    variant="outline"
+                    onClick={() => {
+                        setAiSuggestion(null); // Clear AI suggestion context
+                        handleGenerateTryOnImage(style.name);
+                    }}
+                    disabled={!userPhotoDataUri || loadingTryOnImage}
+                >
+                    <Eye className="mr-2 h-4 w-4"/> Try On (Mock)
+                </Button>
+                <Button className="w-full sm:w-1/2" onClick={() => handleBookStyle(style.name)}>
+                  Book Style <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
             </Card>
@@ -357,4 +392,3 @@ export default function HairstyleSuggestionPage() {
   );
 }
 
-    
