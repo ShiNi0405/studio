@@ -25,6 +25,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
@@ -42,7 +53,7 @@ const bookingFormSchema = z.object({
   notes: z.string().max(500, "Notes cannot exceed 500 characters.").optional(),
 }).refine(data => data.style || data.serviceId, {
   message: "Either a style description or a specific service must be provided/selected.",
-  path: ["serviceId"], // Point error to serviceId if neither is present
+  path: ["serviceId"],
 });
 
 
@@ -57,12 +68,11 @@ type BookingFormProps = {
 export default function BookingForm({ barber, customer }: BookingFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDialogControlledOpen, setIsDialogControlledOpen] = useState(false);
   const searchParams = useSearchParams();
   const suggestedStyleFromQuery = searchParams.get('style');
   
-  // Store the full selected OfferedHaircut object to access its price/duration
   const [selectedOfferedHaircut, setSelectedOfferedHaircut] = useState<OfferedHaircut | null>(null);
-
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
@@ -74,11 +84,13 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     },
   });
 
+  const formData = form.watch(); // Watch all form data for the dialog
+
   useEffect(() => {
     if (suggestedStyleFromQuery) {
       form.setValue('style', suggestedStyleFromQuery);
-      form.setValue('serviceId', undefined); // Clear serviceId if a style is suggested
-      setSelectedOfferedHaircut(null); // Clear selected service details
+      form.setValue('serviceId', undefined); 
+      setSelectedOfferedHaircut(null); 
     }
   }, [suggestedStyleFromQuery, form]);
 
@@ -87,15 +99,17 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
     if (service) {
         setSelectedOfferedHaircut(service);
         form.setValue('serviceId', serviceIdValue);
-        form.setValue('style', undefined); // Clear custom style if a predefined service is chosen
+        form.setValue('style', undefined); 
     } else {
         setSelectedOfferedHaircut(null);
-        // form.setValue('serviceId', undefined); // if serviceIdValue is empty string for placeholder
     }
   };
 
+  const handleFormSubmit = async (data: BookingFormValues) => {
+    setIsDialogControlledOpen(true); // Open dialog on form "attempted" submit
+  }
 
-  async function onSubmit(data: BookingFormValues) {
+  async function processBooking(data: BookingFormValues) {
     setIsSubmitting(true);
     try {
       const [hours, minutes] = data.time.split(':').map(Number);
@@ -109,8 +123,8 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         barberName: barber.displayName || 'Barber',
         appointmentDateTime: appointmentDateTime,
         time: data.time,
-        style: data.style || undefined, // Custom style description
-        serviceName: selectedOfferedHaircut?.haircutName, // Name from selected OfferedHaircut
+        style: data.style || undefined,
+        serviceName: selectedOfferedHaircut?.haircutName,
         servicePrice: selectedOfferedHaircut?.price,
         serviceDuration: selectedOfferedHaircut?.duration,
         notes: data.notes || '',
@@ -138,19 +152,21 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       toast({ title: "Booking Failed", description: error.message || "There was an error submitting your booking. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
+      setIsDialogControlledOpen(false); // Close dialog after submission attempt
     }
   }
   
   const servicesAvailable = barber.servicesOffered && barber.servicesOffered.length > 0;
+  const currentServiceDisplay = formData.style || selectedOfferedHaircut?.haircutName || "Appointment";
+  const currentPriceDisplay = selectedOfferedHaircut?.price !== undefined ? `RM${selectedOfferedHaircut.price.toFixed(2)}` : "Price to be confirmed by barber";
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-8">
         {suggestedStyleFromQuery && (
           <FormItem>
             <FormLabel className="text-lg font-semibold">Requested Custom Style</FormLabel>
             <p className="text-md p-3 bg-muted rounded-md">{suggestedStyleFromQuery}</p>
-            {/* Hidden field to pass the style value if it comes from query params */}
             <FormField
               control={form.control}
               name="style"
@@ -162,16 +178,17 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         {!suggestedStyleFromQuery && servicesAvailable && (
            <FormField
             control={form.control}
-            name="serviceId" // Now this field stores the ID of the OfferedHaircut
+            name="serviceId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Select a Haircut/Service</FormLabel>
                 <Select 
                     onValueChange={(value) => {
-                        field.onChange(value); // RHF updates with the service ID
-                        handleServiceChange(value); // Custom handler to set full service details
+                        field.onChange(value); 
+                        handleServiceChange(value);
                     }} 
                     defaultValue={field.value}
+                    value={field.value || ""} // Ensure value is controlled
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -269,11 +286,58 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={isSubmitting || !form.watch('date') || !form.watch('time') || (!form.watch('style') && !form.watch('serviceId')) } className="w-full text-lg py-6">
-          {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Request Appointment
-        </Button>
+        
+        {selectedOfferedHaircut?.price !== undefined && (
+            <div className="p-3 bg-accent/10 rounded-md text-center">
+                <p className="text-sm text-accent-foreground/80">Selected Service Price:</p>
+                <p className="text-xl font-bold text-accent">RM{selectedOfferedHaircut.price.toFixed(2)}</p>
+            </div>
+        )}
+
+        <AlertDialog open={isDialogControlledOpen} onOpenChange={setIsDialogControlledOpen}>
+            <AlertDialogTrigger asChild>
+                <Button 
+                    type="submit" 
+                    disabled={isSubmitting || !form.watch('date') || !form.watch('time') || (!form.watch('style') && !form.watch('serviceId')) } 
+                    className="w-full text-lg py-6"
+                >
+                    Request Appointment
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Your Appointment</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Please review your appointment details before confirming:
+                    <ul className="mt-3 space-y-1 text-sm text-foreground/90 list-disc list-inside">
+                        <li><strong>Barber:</strong> {barber.displayName}</li>
+                        <li><strong>Service:</strong> {currentServiceDisplay}</li>
+                        <li><strong>Date:</strong> {formData.date ? format(formData.date, "PPP") : 'Not set'}</li>
+                        <li><strong>Time:</strong> {formData.time || 'Not set'}</li>
+                        <li><strong>Price:</strong> <span className="font-semibold">{currentPriceDisplay}</span></li>
+                        {formData.notes && (<li><strong>Notes:</strong> {formData.notes}</li>)}
+                    </ul>
+                     {selectedOfferedHaircut?.price === undefined && !formData.style && (
+                        <p className="mt-2 text-xs text-muted-foreground">The final price for this service will be confirmed by the barber.</p>
+                     )}
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setIsDialogControlledOpen(false)} disabled={isSubmitting}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                    onClick={() => processBooking(form.getValues())} 
+                    disabled={isSubmitting}
+                    className="bg-primary hover:bg-primary/90"
+                >
+                    {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Confirm & Send Request
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
       </form>
     </Form>
   );
 }
+
