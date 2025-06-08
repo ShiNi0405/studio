@@ -52,9 +52,9 @@ const WOMENS_HAIRCUT_OPTIONS: HaircutOption[] = [
 
 
 const offeredHaircutSchema = z.object({
-  id: z.string(), // Unique ID for this offered service instance (for useFieldArray key)
-  haircutOptionId: z.string(), // From the bank, e.g., 'men-crew-cut'
-  haircutName: z.string(), // Denormalized name, e.g., "Crew Cut"
+  id: z.string(), 
+  haircutOptionId: z.string(), 
+  haircutName: z.string(), 
   gender: z.enum(['men', 'women']),
   price: z.coerce.number().min(0, "Price must be a positive number."),
   duration: z.coerce.number().min(0, "Duration must be a positive number in minutes.").optional(),
@@ -87,11 +87,12 @@ export default function MyProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       displayName: '', photoURL: '', location: '', bio: '', specialties: [],
-      experienceYears: 0, availability: '{}', servicesOffered: [],
+      experienceYears: undefined, // Use undefined for optional numbers not yet set
+      availability: '{}', servicesOffered: [],
     },
   });
 
-  const { fields: serviceFields, append: appendService, remove: removeService, update: updateService } = useFieldArray({
+  const { fields: serviceFields, append: appendService, remove: removeService } = useFieldArray({
     control: form.control,
     name: "servicesOffered"
   });
@@ -121,10 +122,12 @@ export default function MyProfilePage() {
           location: data.location || '',
           bio: data.bio || '',
           specialties: data.specialties || [],
-          experienceYears: data.experienceYears || 0,
+          experienceYears: data.experienceYears === undefined || data.experienceYears === null ? undefined : Number(data.experienceYears),
           availability: data.availability || '{}',
           servicesOffered: (data.servicesOffered || []).map(s => ({
             ...s,
+            price: s.price === undefined || s.price === null ? 0 : Number(s.price),
+            duration: s.duration === undefined || s.duration === null ? undefined : Number(s.duration),
             portfolioImageURLs: (s.portfolioImageURLs || []).map(url => ({ url }))
           })),
         });
@@ -134,21 +137,21 @@ export default function MyProfilePage() {
   };
 
   const handleAddService = (haircutOption: HaircutOption) => {
-    const alreadyAdded = serviceFields.some(field => field.haircutOptionId === haircutOption.id);
-    if (alreadyAdded) {
+    const alreadyAdded = serviceFields.some(field => field.haircutOptionId === haircutOption.id && !field.haircutName.toLowerCase().includes("custom"));
+    if (alreadyAdded && !haircutOption.isCustom) {
       toast({ title: "Already Added", description: `${haircutOption.name} is already in your offered services.`, variant: "default" });
       return;
     }
     appendService({
       id: `offered-${Date.now()}-${Math.random().toString(36).substring(2,7)}`,
       haircutOptionId: haircutOption.id,
-      haircutName: haircutOption.name,
+      haircutName: haircutOption.isCustom ? `Custom ${haircutOption.gender === 'men' ? "Men's" : "Women's"} Haircut ${serviceFields.filter(sf => sf.haircutOptionId === haircutOption.id).length + 1}` : haircutOption.name,
       gender: haircutOption.gender,
       price: 0,
       duration: undefined,
       portfolioImageURLs: [],
     });
-    toast({ title: "Service Added", description: `${haircutOption.name} added to your services. Please set price and other details.`});
+    toast({ title: "Service Added", description: `${haircutOption.name} added. Please set price & details.`});
   };
 
   const onSubmit = async (values: ProfileFormValues) => {
@@ -156,29 +159,52 @@ export default function MyProfilePage() {
     setIsSubmitting(true);
     try {
       const userDocRef = doc(db, 'users', user.uid);
-      const currentDocSnap = await getDoc(userDocRef);
-      const currentData = currentDocSnap.exists() ? currentDocSnap.data() as Barber : {};
-
+      
+      // Construct the data to be updated, ensuring no 'undefined' values are sent.
       const updateData: Partial<Barber> = {
         displayName: values.displayName,
-        photoURL: values.photoURL,
-        location: values.location,
-        bio: values.bio,
-        specialties: Array.isArray(values.specialties) ? values.specialties : [],
-        experienceYears: values.experienceYears,
-        availability: values.availability,
-        servicesOffered: (values.servicesOffered || []).map(service => ({
-          ...service,
-          portfolioImageURLs: (service.portfolioImageURLs || []).map(p => p.url),
-          price: Number(service.price),
-          duration: service.duration ? Number(service.duration) : undefined,
-        })),
-        latitude: currentData.latitude, longitude: currentData.longitude,
       };
+
+      if (values.photoURL !== undefined) updateData.photoURL = values.photoURL; else updateData.photoURL = null;
+      if (values.location !== undefined) updateData.location = values.location; else updateData.location = null;
+      if (values.bio !== undefined) updateData.bio = values.bio; else updateData.bio = null;
+      
+      // Specialties is an array, Zod transform handles empty state to []
+      updateData.specialties = values.specialties; 
+      
+      if (values.experienceYears !== undefined) updateData.experienceYears = Number(values.experienceYears); else updateData.experienceYears = null;
+      if (values.availability !== undefined) updateData.availability = values.availability; else updateData.availability = null;
+      
+      updateData.servicesOffered = (values.servicesOffered || []).map(service => {
+        const mappedService: OfferedHaircut = {
+          id: service.id,
+          haircutOptionId: service.haircutOptionId,
+          haircutName: service.haircutName,
+          gender: service.gender,
+          price: Number(service.price), // Zod already coerced
+          portfolioImageURLs: (service.portfolioImageURLs || []).map(p => p.url),
+        };
+        // Handle optional duration: if undefined from form (after Zod), set to null for Firestore
+        if (service.duration !== undefined) {
+          mappedService.duration = Number(service.duration); // Zod already coerced
+        } else {
+          mappedService.duration = null; 
+        }
+        return mappedService;
+      });
+
       await updateDoc(userDocRef, updateData);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
-    } catch (err) { console.error("Error updating profile:", err); toast({ title: "Update Failed", description: "Could not update your profile.", variant: "destructive" });
-    } finally { setIsSubmitting(false); }
+    } catch (err: any) { 
+        console.error("Error updating profile:", err);
+        let errorMessage = "Could not update your profile.";
+        if (err.message) {
+            errorMessage += ` Error: ${err.message}`;
+        }
+        toast({ title: "Update Failed", description: errorMessage, variant: "destructive" });
+    } finally { 
+        setIsSubmitting(false); 
+    }
   };
 
   if (authLoading || loadingData) return <div className="flex flex-col items-center justify-center min-h-[calc(100vh-15rem)]"><Loader2 className="h-12 w-12 animate-spin text-primary mb-4" /><p className="text-muted-foreground">Loading profile...</p></div>;
@@ -201,7 +227,7 @@ export default function MyProfilePage() {
               <FormField control={form.control} name="bio" render={({ field }) => (<FormItem><FormLabel>Bio</FormLabel><FormControl><Textarea placeholder="About yourself..." {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="specialties" render={({ field }) => (<FormItem><FormLabel>General Specialties</FormLabel><FormControl><Input placeholder="e.g., Fades, Beard Trims" value={Array.isArray(field.value) ? field.value.join(', ') : field.value} onChange={(e) => field.onChange(e.target.value)} /></FormControl><FormDescription>Comma-separated.</FormDescription><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="experienceYears" render={({ field }) => (<FormItem><FormLabel>Years of Experience</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="availability" render={({ field }) => (<FormItem><FormLabel>Availability (JSON)</FormLabel><FormControl><Textarea placeholder='{"monday": ["09:00-17:00"]}' {...field} /></FormControl><FormDescription>General weekly availability.</FormDescription><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="availability" render={({ field }) => (<FormItem><FormLabel>Availability (JSON)</FormLabel><FormControl><Textarea placeholder='{"monday": ["09:00-17:00"]}' {...field} /></FormControl><FormDescription>General weekly availability. Example: {"{\"monday\": [\"09:00-12:00\", \"13:00-17:00\"], \"tuesday\": [\"09:00-17:00\"]}"}</FormDescription><FormMessage /></FormItem>)} />
 
               {/* Haircut Option Bank */}
               <Card>
@@ -219,7 +245,7 @@ export default function MyProfilePage() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {MENS_HAIRCUT_OPTIONS.map(opt => (
                           <Card key={opt.id} className="flex flex-col items-center p-3 text-center">
-                            <Image src={opt.exampleImageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(opt.name.substring(0,10))}`} alt={opt.name} width={80} height={80} className="rounded-md mb-2 object-cover aspect-square" data-ai-hint={opt.defaultImageHint} />
+                            <Image src={opt.exampleImageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(opt.name.substring(0,10))}`} alt={opt.name} width={80} height={80} className="rounded-md mb-2 object-cover aspect-square" data-ai-hint={opt.defaultImageHint || 'hairstyle men'} />
                             <p className="text-sm font-medium mb-2 leading-tight">{opt.name}</p>
                             <Button type="button" size="sm" variant="outline" onClick={() => handleAddService(opt)} className="w-full text-xs">
                               <PlusCircle className="mr-1.5 h-3.5 w-3.5"/> Add
@@ -232,7 +258,7 @@ export default function MyProfilePage() {
                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {WOMENS_HAIRCUT_OPTIONS.map(opt => (
                            <Card key={opt.id} className="flex flex-col items-center p-3 text-center">
-                            <Image src={opt.exampleImageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(opt.name.substring(0,10))}`} alt={opt.name} width={80} height={80} className="rounded-md mb-2 object-cover aspect-square" data-ai-hint={opt.defaultImageHint} />
+                            <Image src={opt.exampleImageUrl || `https://placehold.co/80x80.png?text=${encodeURIComponent(opt.name.substring(0,10))}`} alt={opt.name} width={80} height={80} className="rounded-md mb-2 object-cover aspect-square" data-ai-hint={opt.defaultImageHint || 'hairstyle women'} />
                             <p className="text-sm font-medium mb-2 leading-tight">{opt.name}</p>
                             <Button type="button" size="sm" variant="outline" onClick={() => handleAddService(opt)} className="w-full text-xs">
                               <PlusCircle className="mr-1.5 h-3.5 w-3.5"/> Add
@@ -255,26 +281,26 @@ export default function MyProfilePage() {
                   <CardContent className="space-y-6">
                     <Tabs defaultValue="my-men-services">
                        <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="my-men-services"><User className="mr-2"/>My Men's Haircuts</TabsTrigger>
-                        <TabsTrigger value="my-women-services"><Users className="mr-2"/>My Women's Haircuts</TabsTrigger>
+                        <TabsTrigger value="my-men-services"><User className="mr-2"/>My Men's Haircuts ({serviceFields.filter(sf => sf.gender === 'men').length})</TabsTrigger>
+                        <TabsTrigger value="my-women-services"><Users className="mr-2"/>My Women's Haircuts ({serviceFields.filter(sf => sf.gender === 'women').length})</TabsTrigger>
                       </TabsList>
                       <TabsContent value="my-men-services" className="mt-4 space-y-4">
-                        {serviceFields.filter(sf => sf.gender === 'men').map((item, index) => {
-                           const originalIndex = serviceFields.findIndex(sf => sf.id === item.id); // Get original index for RHF
+                        {serviceFields.filter(sf => sf.gender === 'men').map((item) => {
+                           const originalIndex = serviceFields.findIndex(sf => sf.id === item.id); 
                            return (
                             <OfferedHaircutFormSection key={item.id} form={form} index={originalIndex} removeService={removeService} />
                            );
                         })}
-                        {serviceFields.filter(sf => sf.gender === 'men').length === 0 && <p className="text-muted-foreground text-sm">No men's haircuts added yet.</p>}
+                        {serviceFields.filter(sf => sf.gender === 'men').length === 0 && <p className="text-muted-foreground text-sm text-center py-4">No men's haircuts added yet. Add some from the bank above!</p>}
                       </TabsContent>
                       <TabsContent value="my-women-services" className="mt-4 space-y-4">
-                         {serviceFields.filter(sf => sf.gender === 'women').map((item, index) => {
+                         {serviceFields.filter(sf => sf.gender === 'women').map((item) => {
                             const originalIndex = serviceFields.findIndex(sf => sf.id === item.id);
                             return (
                               <OfferedHaircutFormSection key={item.id} form={form} index={originalIndex} removeService={removeService} />
                             );
                          })}
-                         {serviceFields.filter(sf => sf.gender === 'women').length === 0 && <p className="text-muted-foreground text-sm">No women's haircuts added yet.</p>}
+                         {serviceFields.filter(sf => sf.gender === 'women').length === 0 && <p className="text-muted-foreground text-sm text-center py-4">No women's haircuts added yet. Add some from the bank above!</p>}
                       </TabsContent>
                     </Tabs>
                   </CardContent>
@@ -296,7 +322,7 @@ export default function MyProfilePage() {
 
 // Helper component for OfferedHaircut form section
 interface OfferedHaircutFormSectionProps {
-  form: any; // UseFormReturn<ProfileFormValues>; // Consider using proper type
+  form: ReturnType<typeof useForm<ProfileFormValues>>;
   index: number;
   removeService: (index: number) => void;
 }
@@ -310,11 +336,12 @@ function OfferedHaircutFormSection({ form, index, removeService }: OfferedHaircu
   const service = form.watch(`servicesOffered.${index}`);
 
   return (
-    <div className="p-4 border rounded-md space-y-3 bg-muted/30 relative">
-      <Button type="button" variant="ghost" size="icon" onClick={() => removeService(index)} className="absolute top-2 right-2 text-destructive hover:text-destructive/80 h-7 w-7">
+    <div className="p-4 border rounded-md space-y-3 bg-muted/30 relative shadow-sm">
+      <Button type="button" variant="ghost" size="icon" onClick={() => removeService(index)} className="absolute top-2 right-2 text-destructive hover:text-destructive/80 h-7 w-7 z-10">
         <Trash2 className="h-4 w-4" />
+        <span className="sr-only">Remove service</span>
       </Button>
-      <h4 className="font-semibold text-lg">{service.haircutName} <span className="text-xs capitalize text-muted-foreground">({service.gender})</span></h4>
+      <h4 className="font-semibold text-lg text-primary">{service.haircutName} <span className="text-xs capitalize text-muted-foreground">({service.gender})</span></h4>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FormField control={form.control} name={`servicesOffered.${index}.price`} render={({ field }) => (
@@ -334,7 +361,7 @@ function OfferedHaircutFormSection({ form, index, removeService }: OfferedHaircu
       </div>
 
       <div className="space-y-2">
-        <FormLabel className="flex items-center"><ImageUp className="w-4 h-4 mr-2"/>Portfolio Images for this Haircut</FormLabel>
+        <FormLabel className="flex items-center"><ImageUp className="w-4 h-4 mr-2 text-primary"/>Portfolio Images for {service.haircutName}</FormLabel>
         {portfolioFields.map((item, pIndex) => (
           <FormField key={item.id} control={form.control} name={`servicesOffered.${index}.portfolioImageURLs.${pIndex}.url`} render={({ field }) => (
             <FormItem>
@@ -342,16 +369,24 @@ function OfferedHaircutFormSection({ form, index, removeService }: OfferedHaircu
                 <FormControl><Input type="url" placeholder="https://image-url.com/photo.png" {...field} /></FormControl>
                 <Button type="button" variant="ghost" size="icon" onClick={() => removePortfolioItem(pIndex)} className="text-destructive hover:text-destructive/80 h-8 w-8 shrink-0">
                   <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Remove image URL</span>
                 </Button>
               </div>
               <FormMessage />
             </FormItem>
           )} />
         ))}
-        <Button type="button" variant="outline" size="sm" onClick={() => appendPortfolio({ url: "" })}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Add Image URL
-        </Button>
+        {portfolioFields.length < 5 && ( // Limit to 5 portfolio images per service for example
+             <Button type="button" variant="outline" size="sm" onClick={() => appendPortfolio({ url: "" })}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Image URL
+            </Button>
+        )}
+         {portfolioFields.length >= 5 && (
+            <FormDescription>Maximum 5 portfolio images per service.</FormDescription>
+        )}
       </div>
     </div>
   );
 }
+
+    
