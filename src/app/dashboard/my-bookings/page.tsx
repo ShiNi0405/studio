@@ -65,7 +65,7 @@ export default function MyBookingsPage() {
       default: return 'secondary';
     }
   };
-  
+
   const getStatusIcon = (status: Booking['status']) => {
      switch (status) {
       case 'confirmed': return <CalendarCheck className="h-4 w-4 text-primary" />;
@@ -88,7 +88,7 @@ export default function MyBookingsPage() {
       </div>
     );
   }
-  
+
   if (error) {
      return (
       <div className="text-center py-10">
@@ -131,7 +131,7 @@ export default function MyBookingsPage() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                     <div>
-                        <CardTitle className="text-xl">{booking.style || booking.service || "Appointment"}</CardTitle>
+                        <CardTitle className="text-xl">{booking.style || booking.serviceName || "Appointment"}</CardTitle>
                         <CardDescription>with {booking.barberName}</CardDescription>
                     </div>
                      <Badge variant={getStatusBadgeVariant(booking.status)} className="capitalize whitespace-nowrap">
@@ -144,6 +144,11 @@ export default function MyBookingsPage() {
                 <p className="text-sm text-foreground">
                   <strong>Date & Time:</strong> {booking.appointmentDateTime ? format(new Date((booking.appointmentDateTime as unknown as Timestamp).seconds * 1000), 'PPP p') : 'N/A'}
                 </p>
+                {booking.serviceName && booking.servicePrice !== undefined && booking.servicePrice !== null && (
+                  <p className="text-sm text-foreground">
+                    <strong>Price:</strong> RM{booking.servicePrice.toFixed(2)}
+                  </p>
+                )}
                 {booking.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2"><strong>Notes:</strong> {booking.notes}</p>}
               </CardContent>
               <CardFooter className="border-t pt-4">

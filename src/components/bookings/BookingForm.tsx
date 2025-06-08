@@ -29,21 +29,20 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import type { Barber, Customer } from '@/types';
+import type { Barber, Customer, ServiceItem } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { createBookingAction } from '@/app/actions/bookingActions';
-import { Timestamp } from 'firebase/firestore';
 import { useSearchParams } from 'next/navigation';
 
 const bookingFormSchema = z.object({
-  style: z.string().optional(), 
-  service: z.string().optional(), 
+  style: z.string().optional(),
+  serviceName: z.string().optional(), // Name of the service from barber's list
   date: z.date({ required_error: "A date is required." }),
   time: z.string().regex(/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, { message: "Invalid time format. Use HH:MM (e.g., 14:30)."}),
   notes: z.string().max(500, "Notes cannot exceed 500 characters.").optional(),
-}).refine(data => data.style || data.service, {
+}).refine(data => data.style || data.serviceName, {
   message: "Either a style or a service must be selected/provided.",
-  path: ["service"], 
+  path: ["serviceName"],
 });
 
 
@@ -54,71 +53,83 @@ type BookingFormProps = {
   customer: Customer;
 };
 
-const dummyServices = [
-  { id: "haircut", name: "Standard Haircut", duration: 60 },
-  { id: "beard_trim", name: "Beard Trim", duration: 30 },
-  { id: "haircut_beard", name: "Haircut & Beard Trim", duration: 90 },
-  { id: "fade", name: "Skin Fade", duration: 75 },
-];
-
 
 export default function BookingForm({ barber, customer }: BookingFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const searchParams = useSearchParams();
   const suggestedStyleFromQuery = searchParams.get('style');
+  const [selectedServiceDetails, setSelectedServiceDetails] = useState<ServiceItem | null>(null);
+
 
   const form = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
     defaultValues: {
       style: suggestedStyleFromQuery || undefined,
-      service: suggestedStyleFromQuery ? undefined : "", 
+      serviceName: suggestedStyleFromQuery ? undefined : "",
       time: "",
       notes: "",
     },
   });
-  
+
   useEffect(() => {
     if (suggestedStyleFromQuery) {
       form.setValue('style', suggestedStyleFromQuery);
-      form.setValue('service', undefined); 
+      form.setValue('serviceName', undefined);
+      setSelectedServiceDetails(null);
     }
   }, [suggestedStyleFromQuery, form]);
+
+  const handleServiceChange = (serviceName: string) => {
+    const service = barber.servicesOffered?.find(s => s.name === serviceName);
+    if (service) {
+        setSelectedServiceDetails(service);
+        form.setValue('serviceName', serviceName);
+        form.setValue('style', undefined); // Clear style if service is chosen
+    } else {
+        setSelectedServiceDetails(null);
+    }
+  };
 
 
   async function onSubmit(data: BookingFormValues) {
     setIsSubmitting(true);
     try {
-      const selectedDate = new Date(data.date);
-      
-      const bookingData = {
+      const [hours, minutes] = data.time.split(':').map(Number);
+      const appointmentDateTime = new Date(data.date);
+      appointmentDateTime.setHours(hours, minutes, 0, 0);
+
+      const bookingPayload = {
         customerId: customer.uid,
         customerName: customer.displayName || 'Customer',
         barberId: barber.uid,
         barberName: barber.displayName || 'Barber',
-        dateTime: Timestamp.fromDate(selectedDate),
-        style: data.style || undefined,
-        service: data.style ? undefined : data.service, 
+        appointmentDateTime: appointmentDateTime,
         time: data.time,
+        style: data.style || undefined,
+        serviceName: data.style ? undefined : data.serviceName,
+        servicePrice: data.style ? undefined : selectedServiceDetails?.price,
+        serviceDuration: data.style ? undefined : selectedServiceDetails?.duration,
         notes: data.notes || '',
         status: 'pending' as const,
       };
-      
-      const result = await createBookingAction(bookingData);
+
+      const result = await createBookingAction(bookingPayload);
 
       if (result.success) {
-        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${data.style || data.service} on ${format(data.date, "PPP")} at ${data.time} has been sent.` });
+        toast({ title: "Booking Request Sent!", description: `Your request to ${barber.displayName} for ${data.style || data.serviceName} on ${format(data.date, "PPP")} at ${data.time} has been sent.` });
         form.reset({
             style: suggestedStyleFromQuery || undefined,
-            service: suggestedStyleFromQuery ? undefined : "",
+            serviceName: suggestedStyleFromQuery ? undefined : "",
             time: "",
             notes: "",
             date: undefined,
         });
+        setSelectedServiceDetails(null);
       } else {
         throw new Error(result.error || "Failed to create booking.");
       }
-      
+
     } catch (error: any) {
       console.error("Booking submission error:", error);
       toast({ title: "Booking Failed", description: error.message || "There was an error submitting your booking. Please try again.", variant: "destructive" });
@@ -126,6 +137,8 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       setIsSubmitting(false);
     }
   }
+  
+  const servicesAvailable = barber.servicesOffered && barber.servicesOffered.length > 0;
 
   return (
     <Form {...form}>
@@ -137,28 +150,32 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             <FormField
               control={form.control}
               name="style"
-              render={({ field }) => <Input type="hidden" {...field} />}
+              render={({ field }) => <Input type="hidden" {...field} value={suggestedStyleFromQuery} />}
             />
           </FormItem>
         )}
 
-        {!suggestedStyleFromQuery && (
+        {!suggestedStyleFromQuery && servicesAvailable && (
            <FormField
             control={form.control}
-            name="service"
+            name="serviceName"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Service</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={(value) => {
+                    field.onChange(value);
+                    handleServiceChange(value);
+                }} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select a service" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {dummyServices.map(service => (
+                    {barber.servicesOffered?.map(service => (
                       <SelectItem key={service.id} value={service.name}>
-                        {service.name} ({service.duration} min)
+                        {service.name} - RM{service.price.toFixed(2)}
+                        {service.duration ? ` (${service.duration} min)` : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -167,6 +184,9 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
               </FormItem>
             )}
           />
+        )}
+        {!suggestedStyleFromQuery && !servicesAvailable && (
+            <p className="text-sm text-muted-foreground">This barber has not listed any specific services yet. You can describe what you need in the notes, or book a general consultation style if available via AI suggestions.</p>
         )}
 
 
@@ -200,7 +220,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
-                    disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) } 
+                    disabled={(date) => date < new Date(new Date().setHours(0,0,0,0)) }
                     initialFocus
                   />
                 </PopoverContent>
@@ -209,7 +229,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="time"
@@ -245,7 +265,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={isSubmitting || !form.watch('date') || !form.watch('time') || (!form.watch('style') && !form.watch('service')) } className="w-full text-lg py-6">
+        <Button type="submit" disabled={isSubmitting || !form.watch('date') || !form.watch('time') || (!form.watch('style') && !form.watch('serviceName')) } className="w-full text-lg py-6">
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Request Appointment
         </Button>

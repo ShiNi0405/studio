@@ -12,10 +12,12 @@ interface CreateBookingData {
   barberId: string;
   barberName: string;
   appointmentDateTime: Date; // Expect a JavaScript Date object for the full appointment date and time
-  service?: string | null; // Optional: user might book a style instead
-  style?: string | null;   // Optional: user might book a service instead
-  time: string; // Expect the HH:MM time string (required by form)
-  notes?: string | null;   // Optional
+  time: string; // Expect the HH:MM time string
+  style?: string | null;
+  serviceName?: string | null;
+  servicePrice?: number | null;
+  serviceDuration?: number | null;
+  notes?: string | null;
   status: BookingStatus;
 }
 
@@ -28,47 +30,52 @@ export async function createBookingAction(data: CreateBookingData) {
       customerName: data.customerName,
       barberId: data.barberId,
       barberName: data.barberName,
-      appointmentDateTime: firestoreTimestamp, // Renamed from dateTime
-      service: data.service || null,
+      appointmentDateTime: firestoreTimestamp,
+      time: data.time,
       style: data.style || null,
-      time: data.time, 
+      serviceName: data.serviceName || null,
+      servicePrice: data.servicePrice === undefined ? null : data.servicePrice, // Ensure undefined becomes null
+      serviceDuration: data.serviceDuration === undefined ? null : data.serviceDuration, // Ensure undefined becomes null
       notes: data.notes || null,
       status: data.status,
       createdAt: serverTimestamp(),
     };
 
     const docRef = await addDoc(collection(db, 'bookings'), bookingToSave);
-    
+
     revalidatePath('/dashboard/my-bookings');
     revalidatePath('/dashboard/booking-requests');
     revalidatePath(`/barbers/${data.barberId}`);
-    
+
     return { success: true, bookingId: docRef.id };
-  } catch (error: any) { 
+  } catch (error: any) {
     console.error('Error creating booking:', error);
     // Log the actual data received by the action
-    console.error('Data received by createBookingAction:', JSON.stringify(data, (key, value) => 
+    console.error('Data received by createBookingAction:', JSON.stringify(data, (key, value) =>
       value instanceof Date ? value.toISOString() : value, 2)
     );
-    // Log the object that was attempted to be saved, converting Date to ISO string for logging
     const attemptedSaveObject = {
         customerId: data.customerId,
         customerName: data.customerName,
         barberId: data.barberId,
         barberName: data.barberName,
-        appointmentDateTime: new Date(data.appointmentDateTime).toISOString(), // For logging
-        service: data.service || null,
-        style: data.style || null,
+        appointmentDateTime: new Date(data.appointmentDateTime).toISOString(),
         time: data.time,
+        style: data.style || null,
+        serviceName: data.serviceName || null,
+        servicePrice: data.servicePrice === undefined ? null : data.servicePrice,
+        serviceDuration: data.serviceDuration === undefined ? null : data.serviceDuration,
         notes: data.notes || null,
         status: data.status,
       };
     console.error('Booking object attempted to save (approximate for logging):', JSON.stringify(attemptedSaveObject, null, 2));
-    return { success: false, error: error.message || 'Failed to create booking. Please check console for details.' };
+
+    let userFriendlyMessage = 'Failed to create booking. Please try again.';
+    if (error.message && error.message.includes("Unsupported field value")) {
+        userFriendlyMessage = "Failed to create booking due to invalid data. Please check your input and try again. Firestore does not support 'undefined' values.";
+    } else if (error.message) {
+        userFriendlyMessage = `Failed to create booking: ${error.message}`;
+    }
+    return { success: false, error: userFriendlyMessage };
   }
 }
-
-// Placeholder for updating booking status (e.g., barber accepts/rejects)
-// export async function updateBookingStatusAction(data: UpdateBookingStatusData) {
-//   // ...
-// }

@@ -4,7 +4,7 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import type { Barber } from '@/types';
+import type { Barber, ServiceItem } from '@/types';
 import { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,11 +14,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import Link from 'next/link';
-import { ChevronLeft, Loader2, AlertCircle, Save, PlusCircle, Trash2 } from 'lucide-react';
+import { ChevronLeft, Loader2, AlertCircle, Save, PlusCircle, Trash2, DollarSign } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+const serviceItemSchema = z.object({
+  id: z.string().default(() => `service-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+  name: z.string().min(1, "Service name is required."),
+  price: z.coerce.number().min(0, "Price must be a positive number."),
+  duration: z.coerce.number().min(0, "Duration must be a positive number.").optional(),
+});
 
 const profileSchema = z.object({
   displayName: z.string().min(2, 'Display name must be at least 2 characters.'),
@@ -37,6 +43,8 @@ const profileSchema = z.object({
   subscriptionActive: z.boolean().optional(),
   photoURL: z.string().url("Must be a valid URL for profile picture.").optional().or(z.literal('')),
   portfolioImageURLs: z.array(z.object({ url: z.string().url("Each portfolio image must be a valid URL.") })).optional(),
+  servicesOffered: z.array(serviceItemSchema).optional(),
+  location: z.string().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -59,12 +67,19 @@ export default function MyProfilePage() {
       subscriptionActive: false,
       photoURL: '',
       portfolioImageURLs: [],
+      servicesOffered: [],
+      location: '',
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields: portfolioFields, append: appendPortfolio, remove: removePortfolio } = useFieldArray({
     control: form.control,
     name: "portfolioImageURLs"
+  });
+
+  const { fields: serviceFields, append: appendService, remove: removeService } = useFieldArray({
+    control: form.control,
+    name: "servicesOffered"
   });
 
   useEffect(() => {
@@ -98,6 +113,8 @@ export default function MyProfilePage() {
           subscriptionActive: data.subscriptionActive || false,
           photoURL: data.photoURL || '',
           portfolioImageURLs: data.portfolioImageURLs ? data.portfolioImageURLs.map(url => ({ url })) : [],
+          servicesOffered: data.servicesOffered || [],
+          location: data.location || '',
         });
       } else {
         setError("Profile data not found.");
@@ -109,13 +126,13 @@ export default function MyProfilePage() {
       setLoadingData(false);
     }
   };
-  
+
   const onSubmit = async (values: ProfileFormValues) => {
     if (!user) return;
     setIsSubmitting(true);
     try {
       const userDocRef = doc(db, 'users', user.uid);
-      
+
       const updateData: Partial<Barber> = {
         displayName: values.displayName,
         bio: values.bio,
@@ -124,8 +141,15 @@ export default function MyProfilePage() {
         availability: values.availability,
         photoURL: values.photoURL,
         portfolioImageURLs: values.portfolioImageURLs ? values.portfolioImageURLs.map(item => item.url) : [],
+        servicesOffered: values.servicesOffered?.map(service => ({
+            id: service.id || `service-${Date.now()}-${Math.random().toString(36).substring(2,7)}`, // ensure ID
+            name: service.name,
+            price: Number(service.price),
+            duration: service.duration ? Number(service.duration) : undefined
+        })) || [],
+        location: values.location,
       };
-      
+
       await updateDoc(userDocRef, updateData);
       toast({ title: "Profile Updated", description: "Your profile has been successfully updated." });
     } catch (err) {
@@ -145,7 +169,7 @@ export default function MyProfilePage() {
       </div>
     );
   }
-  
+
    if (error) {
      return (
       <div className="text-center py-10">
@@ -192,6 +216,18 @@ export default function MyProfilePage() {
                   </FormItem>
                 )}
               />
+               <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location / Area</FormLabel>
+                    <FormControl><Input placeholder="e.g., Kuala Lumpur City Centre, Petaling Jaya SS2" {...field} /></FormControl>
+                     <FormDescription>Help customers find you by specifying your general location.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="bio"
@@ -210,8 +246,8 @@ export default function MyProfilePage() {
                   <FormItem>
                     <FormLabel>Specialties</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="e.g., Fades, Beard Trims, Kids Cuts" 
+                      <Input
+                        placeholder="e.g., Fades, Beard Trims, Kids Cuts"
                         // @ts-ignore
                         value={Array.isArray(field.value) ? field.value.join(', ') : field.value}
                         onChange={(e) => field.onChange(e.target.value)}
@@ -248,9 +284,68 @@ export default function MyProfilePage() {
                 )}
               />
 
-              <div className="space-y-4">
-                <FormLabel>Portfolio Image URLs</FormLabel>
-                {fields.map((item, index) => (
+              <div className="space-y-4 border p-4 rounded-md">
+                <h3 className="text-lg font-semibold">Services Offered</h3>
+                {serviceFields.map((item, index) => (
+                  <div key={item.id} className="p-3 border rounded-md space-y-3 bg-muted/30 relative">
+                     <Button type="button" variant="ghost" size="icon" onClick={() => removeService(index)} className="absolute top-1 right-1 text-destructive hover:text-destructive/80 h-7 w-7">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    <FormField
+                      control={form.control}
+                      name={`servicesOffered.${index}.name`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Service Name</FormLabel>
+                          <FormControl><Input placeholder="e.g., Men's Haircut" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name={`servicesOffered.${index}.price`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price (RM)</FormLabel>
+                           <div className="relative">
+                            <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <FormControl><Input type="number" placeholder="e.g., 50" className="pl-8" {...field} /></FormControl>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`servicesOffered.${index}.duration`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Duration (min)</FormLabel>
+                          <FormControl><Input type="number" placeholder="e.g., 60" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => appendService({ id: `service-${Date.now()}-${Math.random().toString(36).substring(2,7)}`, name: "", price: 0, duration: undefined })}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Service
+                </Button>
+              </div>
+
+
+              <div className="space-y-4 border p-4 rounded-md">
+                <h3 className="text-lg font-semibold">Portfolio Image URLs</h3>
+                {portfolioFields.map((item, index) => (
                   <FormField
                     key={item.id}
                     control={form.control}
@@ -261,7 +356,7 @@ export default function MyProfilePage() {
                           <FormControl>
                             <Input type="url" placeholder="https://example.com/portfolio_image.png" {...field} />
                           </FormControl>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="text-destructive hover:text-destructive/80">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removePortfolio(index)} className="text-destructive hover:text-destructive/80">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -274,16 +369,16 @@ export default function MyProfilePage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ url: "" })}
+                  onClick={() => appendPortfolio({ url: "" })}
                 >
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Add Portfolio Image URL
                 </Button>
                  <FormDescription>
-                  Add direct URLs to your portfolio images. Actual file uploads can be added in a future update.
+                  Add direct URLs to your portfolio images.
                 </FormDescription>
               </div>
-              
+
               <CardFooter className="flex justify-end space-x-3 pt-6 px-0 border-t">
                 <Button variant="outline" asChild type="button">
                     <Link href="/dashboard"><ChevronLeft className="mr-2 h-4 w-4" />Cancel</Link>

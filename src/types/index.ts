@@ -3,6 +3,13 @@ import type { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'customer' | 'barber';
 
+export interface ServiceItem {
+  id: string; // Unique ID for the service item, e.g., generated client-side
+  name: string;
+  price: number;
+  duration?: number; // Duration in minutes
+}
+
 export interface BaseUser {
   uid: string;
   email: string | null;
@@ -23,19 +30,19 @@ export interface Barber extends BaseUser {
   experienceYears?: number;
   availability?: string; // JSON string: {"monday": ["09:00-12:00", "14:00-18:00"], ...}
   subscriptionActive?: boolean;
-  portfolioImageURLs?: string[]; // Added for portfolio
-  // averageRating?: number; // Could be added for optimization later
-  // reviewCount?: number; // Could be added for optimization later
+  portfolioImageURLs?: string[];
+  servicesOffered?: ServiceItem[];
+  location?: string; // For potential "nearby" feature
 }
 
 export type AppUser = Customer | Barber;
 
-export type BookingStatus = 
-  | 'pending' 
-  | 'confirmed' 
-  | 'cancelled_by_customer' 
-  | 'cancelled_by_barber' 
-  | 'completed' 
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'cancelled_by_customer'
+  | 'cancelled_by_barber'
+  | 'completed'
   | 'rejected';
 
 export interface Booking {
@@ -44,17 +51,15 @@ export interface Booking {
   customerName: string;
   barberId: string;
   barberName: string;
-  /** The full date and time of the appointment, stored as a Firestore Timestamp. */
-  appointmentDateTime: Timestamp; 
-  /** The specific time chosen by user (e.g., "15:00"), primarily for display or simple filtering. */
-  time: string; 
-  service?: string; 
-  style?: string;   
+  appointmentDateTime: Timestamp;
+  time: string;
+  style?: string; // If a custom style was booked
+  serviceName?: string; // Name of the service booked from barber's list
+  servicePrice?: number; // Price of the service at time of booking
+  serviceDuration?: number; // Duration of the service at time of booking
   notes?: string;
   status: BookingStatus;
   createdAt: Timestamp;
-  // Deprecating 'dateTime' in favor of 'appointmentDateTime' for clarity
-  // dateTime?: Timestamp; // Old field, prefer appointmentDateTime
 }
 
 export interface Review {

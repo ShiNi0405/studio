@@ -55,7 +55,7 @@ export default function BookingRequestsPage() {
       const q = query(
         collection(db, 'bookings'),
         where('barberId', '==', user.uid),
-        where('status', 'in', ['pending', 'confirmed']), 
+        where('status', 'in', ['pending', 'confirmed']),
         orderBy('appointmentDateTime', 'asc')
       );
       const querySnapshot = await getDocs(q);
@@ -68,14 +68,14 @@ export default function BookingRequestsPage() {
       setLoading(false);
     }
   };
-  
+
   const handleUpdateStatus = async (bookingId: string, newStatus: 'confirmed' | 'rejected' | 'completed' | 'cancelled_by_barber') => {
     setUpdatingBookingId(bookingId);
     try {
       const bookingRef = doc(db, 'bookings', bookingId);
       await updateDoc(bookingRef, { status: newStatus });
       toast({ title: "Booking Updated", description: `Booking status changed to ${newStatus}.`});
-      fetchBookingRequests(); 
+      fetchBookingRequests();
     } catch (err) {
       console.error("Error updating booking status:", err);
       toast({ title: "Update Failed", description: "Could not update booking status.", variant: "destructive" });
@@ -94,7 +94,7 @@ export default function BookingRequestsPage() {
       </div>
     );
   }
-  
+
    if (error) {
      return (
       <div className="text-center py-10">
@@ -131,13 +131,16 @@ export default function BookingRequestsPage() {
           {bookings.map(booking => (
             <Card key={booking.id} className="flex flex-col justify-between hover:shadow-lg transition-shadow">
               <CardHeader>
-                <CardTitle className="text-xl">{booking.style || booking.service || "Appointment Request"}</CardTitle>
+                <CardTitle className="text-xl">{booking.style || booking.serviceName || "Appointment Request"}</CardTitle>
                 <CardDescription>From: {booking.customerName}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <p className="text-sm text-foreground">
                   <strong>Date & Time:</strong> {booking.appointmentDateTime ? format(new Date((booking.appointmentDateTime as unknown as Timestamp).seconds * 1000), 'PPP p') : 'N/A'}
                 </p>
+                {booking.serviceName && booking.servicePrice !== undefined && booking.servicePrice !== null && (
+                    <p className="text-sm text-foreground"><strong>Service Price:</strong> RM{booking.servicePrice.toFixed(2)}</p>
+                )}
                 {booking.notes && <p className="text-sm text-muted-foreground mt-2 line-clamp-2"><strong>Notes:</strong> {booking.notes}</p>}
                 <Badge variant={booking.status === 'confirmed' ? 'default' : 'secondary'} className="mt-3 capitalize">{booking.status}</Badge>
               </CardContent>
@@ -146,8 +149,8 @@ export default function BookingRequestsPage() {
                   <>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button 
-                            size="sm" 
+                        <Button
+                            size="sm"
                             className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground"
                             disabled={updatingBookingId === booking.id}
                             onClick={() => setSelectedBookingForAction(booking)}
@@ -160,26 +163,26 @@ export default function BookingRequestsPage() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Confirm Acceptance</AlertDialogTitle>
                           <AlertDialogDescription>
-                            A fee of RM5 will be charged to accept this booking. This is a simulated payment.
+                            A fee of RM5.00 will be charged to accept this booking. This is a simulated payment.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel onClick={() => setSelectedBookingForAction(null)}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
+                          <AlertDialogAction
                             onClick={() => selectedBookingForAction && handleUpdateStatus(selectedBookingForAction.id, 'confirmed')}
                             disabled={!selectedBookingForAction || updatingBookingId === selectedBookingForAction.id}
                             className="bg-accent hover:bg-accent/90"
                           >
                             {updatingBookingId === selectedBookingForAction?.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Pay RM5 & Accept
+                            Pay RM5.00 & Accept
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
 
-                    <Button 
-                        variant="destructive" 
-                        size="sm" 
+                    <Button
+                        variant="destructive"
+                        size="sm"
                         onClick={() => handleUpdateStatus(booking.id, 'rejected')}
                         disabled={updatingBookingId === booking.id}
                         className="flex-1"
@@ -191,9 +194,9 @@ export default function BookingRequestsPage() {
                 )}
                 {booking.status === 'confirmed' && (
                     <>
-                    <Button 
-                        variant="outline" 
-                        size="sm" 
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleUpdateStatus(booking.id, 'completed')}
                         disabled={updatingBookingId === booking.id}
                         className="flex-1"
@@ -201,9 +204,9 @@ export default function BookingRequestsPage() {
                          {updatingBookingId === booking.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Mark as Completed
                     </Button>
-                    <Button 
-                        variant="destructive" 
-                        size="sm" 
+                    <Button
+                        variant="destructive"
+                        size="sm"
                         onClick={() => handleUpdateStatus(booking.id, 'cancelled_by_barber')}
                         disabled={updatingBookingId === booking.id}
                         className="flex-1"
@@ -226,4 +229,3 @@ export default function BookingRequestsPage() {
     </div>
   );
 }
-

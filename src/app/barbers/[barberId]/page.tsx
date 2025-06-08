@@ -7,11 +7,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { db } from '@/lib/firebase/config';
-import type { Barber, Review } from '@/types';
+import type { Barber, Review, ServiceItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CalendarCheck, ChevronLeft, MapPin, Scissors, Star, Users, Clock, Image as ImageIcon, Briefcase } from 'lucide-react';
+import { CalendarCheck, ChevronLeft, MapPin, Scissors, Star, Users, Clock, Image as ImageIcon, Briefcase, DollarSign, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -125,13 +125,13 @@ const ReviewList = ({ barberId }: { barberId: string }) => {
       </Card>
     );
   }
-  
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center">
             <Star className="w-5 h-5 mr-2 text-yellow-500 fill-yellow-500"/>
-            Customer Reviews 
+            Customer Reviews
             {totalReviews > 0 && <span className="ml-2 text-base font-normal text-muted-foreground">({averageRating.toFixed(1)} average from {totalReviews} reviews)</span>}
         </CardTitle>
       </CardHeader>
@@ -198,6 +198,39 @@ const AvailabilityDisplay = ({ availabilityString }: { availabilityString?: stri
     </div>
   );
 };
+
+const ServicesDisplay = ({ services }: { services?: ServiceItem[] }) => {
+  if (!services || services.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center"><Tag className="w-5 h-5 mr-2 text-primary"/>Services Offered</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">This barber hasn't listed any specific services yet.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center"><Tag className="w-5 h-5 mr-2 text-primary"/>Services Offered</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {services.map(service => (
+          <div key={service.id} className="p-3 bg-muted/50 rounded-md flex justify-between items-center">
+            <div>
+              <h4 className="font-semibold text-foreground/90">{service.name}</h4>
+              {service.duration && <p className="text-xs text-muted-foreground">{service.duration} minutes</p>}
+            </div>
+            <p className="font-semibold text-primary">RM{service.price.toFixed(2)}</p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 
 const AvailabilityCard = ({ barberId, availabilityString }: { barberId: string, availabilityString?: string }) => {
@@ -266,10 +299,10 @@ function BarberProfilePageContent() {
   }
 
   if (!barber) {
-    return null; 
+    return null;
   }
 
-  const bookLink = suggestedStyle 
+  const bookLink = suggestedStyle
     ? `/barbers/${barber.uid}/book?style=${encodeURIComponent(suggestedStyle)}`
     : `/barbers/${barber.uid}/book`;
 
@@ -296,16 +329,17 @@ function BarberProfilePageContent() {
           </div>
           <div className="md:w-2/3 p-6 md:p-8">
             <h1 className="text-4xl font-headline font-bold text-primary mb-2">{barber.displayName}</h1>
-            {/* Average rating display will now be handled by ReviewList component */}
-            
+            {barber.location && (
+                <p className="text-muted-foreground flex items-center mb-1"><MapPin className="w-4 h-4 mr-2"/> {barber.location}</p>
+            )}
             <p className="text-muted-foreground flex items-center mb-1"><Users className="w-4 h-4 mr-2"/> Member since {barber.createdAt ? new Date(barber.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
             {barber.experienceYears !== undefined && (
                 <p className="text-muted-foreground flex items-center mb-1"><Briefcase className="w-4 h-4 mr-2"/> {barber.experienceYears} years of experience</p>
             )}
-            
+
 
             <p className="text-foreground/80 my-4">{barber.bio || "Dedicated to crafting the perfect look for every client. With years of experience and a passion for precision, I offer a range of services to meet your grooming needs."}</p>
-            
+
             {barber.specialties && barber.specialties.length > 0 && (
               <div className="mb-4">
                 <h3 className="text-lg font-semibold mb-2 flex items-center"><Scissors className="w-5 h-5 mr-2 text-primary"/>Specialties</h3>
@@ -316,19 +350,22 @@ function BarberProfilePageContent() {
                 </div>
               </div>
             )}
-                        
+
             <Button size="lg" asChild className="w-full md:w-auto mt-4 transition-all-subtle hover:scale-105">
               <Link href={bookLink}>Book Appointment {suggestedStyle && `for ${suggestedStyle}`}</Link>
             </Button>
           </div>
         </div>
       </Card>
-      
+
       <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-8">
+        <ServicesDisplay services={barber.servicesOffered} />
         <AvailabilityCard barberId={barber.uid} availabilityString={barber.availability} />
+      </div>
+      <div className="grid md:grid-cols-1 gap-8">
         <PortfolioSection imageURLs={barber.portfolioImageURLs} />
       </div>
-      
+
       <ReviewList barberId={barber.uid} />
 
     </div>
