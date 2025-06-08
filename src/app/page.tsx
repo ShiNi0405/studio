@@ -1,38 +1,108 @@
 
+'use client';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Search, SparklesIcon } from 'lucide-react';
+import { ArrowRight, Search, SparklesIcon, Loader2, UserCog, CalendarClock, Star as StarIcon, CalendarDays } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] space-y-4">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+        <p className="text-muted-foreground">Loading Barbermatch...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col items-center text-center space-y-12">
       <header className="mt-12 md:mt-20">
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-primary">
-          Welcome to Barbermatch
+          {user ? `Welcome back, ${user.displayName?.split(' ')[0] || 'User'}!` : "Welcome to Barbermatch"}
         </h1>
         <p className="mt-4 text-lg md:text-xl text-foreground/80 max-w-2xl mx-auto">
-          Discover talented barbers, book appointments with ease, and elevate your grooming experience.
-          Your perfect haircut is just a few clicks away.
+          {user && user.role === 'barber'
+            ? "Manage your profile, bookings, and reviews all in one place."
+            : user && user.role === 'customer'
+            ? "Find your perfect barber, get hairstyle ideas, and manage your appointments."
+            : "Discover talented barbers, book appointments with ease, and elevate your grooming experience. Your perfect haircut is just a few clicks away."
+          }
         </p>
       </header>
 
-      <section className="w-full max-w-lg grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Button size="lg" className="w-full text-lg py-8" asChild>
-          <Link href="/barbers">
-            <Search className="mr-3 h-6 w-6" />
-            Find a Barber
-          </Link>
-        </Button>
-        <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
-          <Link href="/hairstyle-suggestion">
-            <SparklesIcon className="mr-3 h-6 w-6" />
-            AI Hairstyle Suggestion
-          </Link>
-        </Button>
+      {/* Conditional Call-to-Action Section */}
+      <section className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4">
+        {!user && (
+          <>
+            <Button size="lg" className="w-full text-lg py-8" asChild>
+              <Link href="/barbers">
+                <Search className="mr-3 h-6 w-6" />
+                Find a Barber
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
+              <Link href="/hairstyle-suggestion">
+                <SparklesIcon className="mr-3 h-6 w-6" />
+                AI Hairstyle Suggestion
+              </Link>
+            </Button>
+          </>
+        )}
+
+        {user && user.role === 'customer' && (
+          <>
+            <Button size="lg" className="w-full text-lg py-8" asChild>
+              <Link href="/barbers">
+                <Search className="mr-3 h-6 w-6" />
+                Find a Barber
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
+              <Link href="/hairstyle-suggestion">
+                <SparklesIcon className="mr-3 h-6 w-6" />
+                AI Hairstyle Suggestion
+              </Link>
+            </Button>
+            <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-2" asChild>
+                <Link href="/dashboard/my-bookings">
+                    <CalendarDays className="mr-3 h-6 w-6"/>
+                    My Bookings
+                </Link>
+            </Button>
+          </>
+        )}
+
+        {user && user.role === 'barber' && (
+          <>
+            <Button size="lg" className="w-full text-lg py-8" asChild>
+              <Link href="/dashboard/my-profile">
+                <UserCog className="mr-3 h-6 w-6" />
+                Manage My Profile
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
+              <Link href="/dashboard/booking-requests">
+                <CalendarClock className="mr-3 h-6 w-6" />
+                Booking Requests
+              </Link>
+            </Button>
+             <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-2" asChild>
+                <Link href="/dashboard/my-reviews">
+                    <StarIcon className="mr-3 h-6 w-6"/>
+                    View My Reviews
+                </Link>
+            </Button>
+          </>
+        )}
       </section>
 
+      {/* Feature Cards - Visible to all */}
       <section className="grid md:grid-cols-3 gap-8 w-full max-w-5xl pt-10">
         <Card className="text-left transition-all-subtle hover:shadow-xl hover:scale-105">
           <CardHeader>
@@ -77,34 +147,37 @@ export default function HomePage() {
         </Card>
       </section>
 
-      <section className="w-full max-w-5xl pt-10">
-        <Card className="bg-primary text-primary-foreground overflow-hidden">
-          <div className="grid md:grid-cols-2 items-center">
-            <div className="p-8 md:p-12 text-left">
-              <h2 className="text-3xl font-headline font-bold">Are you a Barber?</h2>
-              <p className="mt-3 opacity-90">
-                Join our platform to showcase your skills, manage bookings, and connect with new clients.
-                Grow your business with Barbermatch.
-              </p>
-              <Button variant="secondary" size="lg" className="mt-6 text-primary" asChild>
-                <Link href="/signup?role=barber">
-                  Join as a Barber <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
+      {/* Conditional "Join as Barber" Section */}
+      {!user && (
+        <section className="w-full max-w-5xl pt-10">
+          <Card className="bg-primary text-primary-foreground overflow-hidden">
+            <div className="grid md:grid-cols-2 items-center">
+              <div className="p-8 md:p-12 text-left">
+                <h2 className="text-3xl font-headline font-bold">Are you a Barber?</h2>
+                <p className="mt-3 opacity-90">
+                  Join our platform to showcase your skills, manage bookings, and connect with new clients.
+                  Grow your business with Barbermatch.
+                </p>
+                <Button variant="secondary" size="lg" className="mt-6 text-primary" asChild>
+                  <Link href="/signup?role=barber">
+                    Join as a Barber <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="hidden md:block h-full">
+                <Image
+                  src="https://placehold.co/600x400.png"
+                  alt="Barber working"
+                  data-ai-hint="barber styling"
+                  width={600}
+                  height={400}
+                  className="object-cover w-full h-full"
+                />
+              </div>
             </div>
-            <div className="hidden md:block h-full">
-              <Image
-                src="https://placehold.co/600x400.png"
-                alt="Barber working"
-                data-ai-hint="barber styling"
-                width={600}
-                height={400}
-                className="object-cover w-full h-full"
-              />
-            </div>
-          </div>
-        </Card>
-      </section>
+          </Card>
+        </section>
+      )}
 
       <footer className="py-12 text-muted-foreground text-sm">
         © {new Date().getFullYear()} Barbermatch. All rights reserved.
