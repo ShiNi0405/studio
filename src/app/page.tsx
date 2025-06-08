@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, Search, SparklesIcon, Loader2, UserCog, CalendarClock, Star as StarIcon, CalendarDays } from 'lucide-react';
+import { ArrowRight, Search, Sparkles as SparklesIcon, Loader2, UserCog, CalendarClock, Star as StarIcon, CalendarDays, Scissors, Grid } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function HomePage() {
@@ -20,6 +20,37 @@ export default function HomePage() {
     );
   }
 
+  const customerActions = [
+    {
+      title: "AI Hairstyle Advisor",
+      description: "Get personalized hairstyle suggestions based on your photo and preferences.",
+      link: "/hairstyle-suggestion",
+      icon: SparklesIcon,
+      actionText: "Get Suggestions"
+    },
+    {
+      title: "Browse & Try Styles",
+      description: "Explore popular hairstyles, try them on (mock), and find barbers who offer them.",
+      link: "/hairstyle-suggestion", // This page hosts the popular styles bank
+      icon: Grid,
+      actionText: "Explore Styles"
+    },
+    {
+      title: "My Bookings",
+      description: "View and manage your upcoming and past appointments.",
+      link: "/dashboard/my-bookings",
+      icon: CalendarDays,
+      actionText: "View Bookings"
+    },
+    {
+      title: "Find a Barber",
+      description: "Discover talented barbers near you, check their profiles, and read reviews.",
+      link: "/barbers",
+      icon: Search,
+      actionText: "Find Barbers"
+    }
+  ];
+
   return (
     <div className="flex flex-col items-center text-center space-y-12">
       <header className="mt-12 md:mt-20">
@@ -30,16 +61,16 @@ export default function HomePage() {
           {user && user.role === 'barber'
             ? "Manage your profile, bookings, and reviews all in one place."
             : user && user.role === 'customer'
-            ? "Find your perfect barber, get hairstyle ideas, and manage your appointments."
+            ? "Explore all the tools and features Barbermatch offers to help you find your perfect look and manage your grooming needs."
             : "Discover talented barbers, book appointments with ease, and elevate your grooming experience. Your perfect haircut is just a few clicks away."
           }
         </p>
       </header>
 
       {/* Conditional Call-to-Action Section */}
-      <section className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4">
+      <section className="w-full max-w-5xl">
         {!user && (
-          <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
             <Button size="lg" className="w-full text-lg py-8" asChild>
               <Link href="/barbers">
                 <Search className="mr-3 h-6 w-6" />
@@ -52,34 +83,37 @@ export default function HomePage() {
                 AI Hairstyle Suggestion
               </Link>
             </Button>
-          </>
+          </div>
         )}
 
         {user && user.role === 'customer' && (
-          <>
-            <Button size="lg" className="w-full text-lg py-8" asChild>
-              <Link href="/barbers">
-                <Search className="mr-3 h-6 w-6" />
-                Find a Barber
-              </Link>
-            </Button>
-            <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
-              <Link href="/hairstyle-suggestion">
-                <SparklesIcon className="mr-3 h-6 w-6" />
-                AI Hairstyle Suggestion
-              </Link>
-            </Button>
-            <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-2" asChild>
-                <Link href="/dashboard/my-bookings">
-                    <CalendarDays className="mr-3 h-6 w-6"/>
-                    My Bookings
-                </Link>
-            </Button>
-          </>
+          <div className="space-y-8">
+            <h2 className="text-3xl font-headline font-semibold text-foreground">What would you like to do today?</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {customerActions.map((action) => (
+                <Card key={action.title} className="text-left transition-all-subtle hover:shadow-xl hover:scale-105 flex flex-col">
+                  <CardHeader>
+                    <div className="flex items-center gap-3 mb-2">
+                      <action.icon className="h-8 w-8 text-primary" />
+                      <CardTitle className="text-2xl font-headline">{action.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <CardDescription>{action.description}</CardDescription>
+                  </CardContent>
+                  <CardFooter>
+                    <Button asChild className="w-full">
+                      <Link href={action.link}>{action.actionText}</Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
 
         {user && user.role === 'barber' && (
-          <>
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-4xl mx-auto">
             <Button size="lg" className="w-full text-lg py-8" asChild>
               <Link href="/dashboard/my-profile">
                 <UserCog className="mr-3 h-6 w-6" />
@@ -92,13 +126,13 @@ export default function HomePage() {
                 Booking Requests
               </Link>
             </Button>
-             <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-2" asChild>
+             <Button size="lg" variant="secondary" className="w-full text-lg py-8 md:col-span-1 lg:col-span-1" asChild> {/* Adjusted span for better layout with 3 cols */}
                 <Link href="/dashboard/my-reviews">
                     <StarIcon className="mr-3 h-6 w-6"/>
                     View My Reviews
                 </Link>
             </Button>
-          </>
+          </div>
         )}
       </section>
 
