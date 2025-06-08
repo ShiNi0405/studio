@@ -12,24 +12,22 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ArrowRight, Loader2, Sparkles, Image as ImageIcon, Wand2, Camera, UploadCloud, RotateCcw, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ALL_HAIRCUT_OPTIONS, MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/config/hairstyleOptions';
 
-// Define mock output types locally
 interface MockDiagnoseFaceSuggestHairstyleOutput {
   detectedFaceShape: string;
-  suggestedHairstyleName: string;
+  suggestedHairstyleName: string; // This will be the general name
   suggestedHairstyleDescription: string;
-  hairstyleVisualizationImagePrompt: string;
+  hairstyleVisualizationImagePrompt: string; // For generating an image of the style itself (mock)
+  haircutOptionId?: string; // If the suggestion maps to a predefined option
 }
 
 const styleTypes = ["Casual", "Trendy", "Professional", "Sporty", "Elegant", "Edgy", "Vintage", "Low-maintenance"];
 
-const predefinedHairstyles = [
-  { id: "crew-cut", name: "Classic Crew Cut", imageHint: "man crew cut", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { id: "modern-quiff", name: "Modern Quiff", imageHint: "man modern quiff", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { id: "textured-crop", name: "Textured Crop", imageHint: "woman textured crop", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { id: "slick-back-undercut", name: "Slick Back Undercut", imageHint: "man slick back", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { id: "layered-bob", name: "Layered Bob", imageHint: "woman layered bob", imagePlaceholder: "https://placehold.co/300x200.png" },
-  { id: "pixie-cut", name: "Pixie Cut", imageHint: "woman pixie cut", imagePlaceholder: "https://placehold.co/300x200.png" },
+// Use a subset or all from config for the popular styles display
+const popularDisplayStyles: HaircutOptionConfig[] = [
+    ...MENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom).slice(0, 3), // e.g. first 3 men's
+    ...WOMENS_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom).slice(0, 3)  // e.g. first 3 women's
 ];
 
 
@@ -47,11 +45,12 @@ export default function HairstyleSuggestionPage() {
   const [aiError, setAiError] = useState<string | null>(null);
 
   const [generatedTryOnImageURL, setGeneratedTryOnImageURL] = useState<string | null>(null);
-  const [currentTryOnStyleName, setCurrentTryOnStyleName] = useState<string | null>(null);
+  const [currentTryOnStyleName, setCurrentTryOnStyleName] = useState<string | null>(null); // Name for display
+  const [currentTryOnOptionId, setCurrentTryOnOptionId] = useState<string | null>(null); // ID for booking
   const [loadingTryOnImage, setLoadingTryOnImage] = useState(false);
 
   const [showWebcam, setShowWebcam] = useState(false);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null); // null: unknown, true: granted, false: denied
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,9 +59,10 @@ export default function HairstyleSuggestionPage() {
       const reader = new FileReader();
       reader.onload = (e) => {
         setUserPhotoDataUri(e.target?.result as string);
-        setAiSuggestion(null); // Clear previous AI suggestion
-        setGeneratedTryOnImageURL(null); // Clear previous try-on image
+        setAiSuggestion(null);
+        setGeneratedTryOnImageURL(null);
         setCurrentTryOnStyleName(null);
+        setCurrentTryOnOptionId(null);
         if (showWebcam) stopWebcam(); 
       };
       reader.readAsDataURL(file);
@@ -74,18 +74,19 @@ export default function HairstyleSuggestionPage() {
       cameraStream.getTracks().forEach(track => track.stop());
     }
     setCameraStream(null);
-    setShowWebcam(false); // This will hide the webcam component
-    if(videoRef.current) videoRef.current.srcObject = null; // Important to release the srcObject
+    setShowWebcam(false); 
+    if(videoRef.current) videoRef.current.srcObject = null;
   }, [cameraStream]);
 
 
   const startWebcam = useCallback(async () => {
-    setShowWebcam(true); // Show webcam component (video feed + buttons)
-    setUserPhotoDataUri(null); // Clear any uploaded photo
+    setShowWebcam(true); 
+    setUserPhotoDataUri(null); 
     setAiSuggestion(null);
     setGeneratedTryOnImageURL(null);
     setCurrentTryOnStyleName(null);
-    setHasCameraPermission(null); // Reset permission state
+    setCurrentTryOnOptionId(null);
+    setHasCameraPermission(null); 
 
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
@@ -103,15 +104,13 @@ export default function HairstyleSuggestionPage() {
           title: 'Camera Access Denied',
           description: 'Please enable camera permissions in your browser settings.',
         });
-        // Do not call stopWebcam here immediately, let UI reflect denied state
       }
     } else {
       toast({ variant: 'destructive', title: 'Webcam Not Supported', description: 'Your browser does not support webcam access.' });
-      setShowWebcam(false); // Hide if not supported
+      setShowWebcam(false); 
     }
   }, [toast]);
 
-  // Effect to stop webcam on component unmount
   useEffect(() => {
     return () => {
         if (cameraStream) {
@@ -122,7 +121,7 @@ export default function HairstyleSuggestionPage() {
 
 
   const capturePhoto = () => {
-    if (videoRef.current && canvasRef.current && cameraStream) { // Ensure stream is active
+    if (videoRef.current && canvasRef.current && cameraStream) { 
       const video = videoRef.current;
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
@@ -134,7 +133,8 @@ export default function HairstyleSuggestionPage() {
       setAiSuggestion(null);
       setGeneratedTryOnImageURL(null);
       setCurrentTryOnStyleName(null);
-      stopWebcam(); // Stop webcam after capture
+      setCurrentTryOnOptionId(null);
+      stopWebcam(); 
     }
   };
   
@@ -148,26 +148,30 @@ export default function HairstyleSuggestionPage() {
     setAiSuggestion(null);
     setGeneratedTryOnImageURL(null); 
     setCurrentTryOnStyleName(null);
+    setCurrentTryOnOptionId(null);
 
     setTimeout(() => {
-      const mockFaceShapes = ["Oval", "Round", "Square", "Heart"];
-      const randomFaceShape = mockFaceShapes[Math.floor(Math.random() * mockFaceShapes.length)];
-      const suggestedName = `Mock ${selectedStyleType} ${randomFaceShape} Cut`;
+      // Mock: Try to pick a style from the known options
+      const compatibleOptions = ALL_HAIRCUT_OPTIONS.filter(opt => !opt.isCustom);
+      const randomOption = compatibleOptions[Math.floor(Math.random() * compatibleOptions.length)] || ALL_HAIRCUT_OPTIONS[0];
+      const suggestedName = randomOption.name; // Use the name from the config
       
       const mockResult: MockDiagnoseFaceSuggestHairstyleOutput = {
-        detectedFaceShape: randomFaceShape,
+        detectedFaceShape: ["Oval", "Round", "Square", "Heart"][Math.floor(Math.random() * 4)],
         suggestedHairstyleName: suggestedName,
-        suggestedHairstyleDescription: `This is a mock description for a ${suggestedName}. It's designed for a ${randomFaceShape.toLowerCase()} face and a ${selectedStyleType.toLowerCase()} vibe, offering a stylish yet manageable look.`,
-        hairstyleVisualizationImagePrompt: `photorealistic image of a ${suggestedName} hairstyle, suitable for ${randomFaceShape} face shape, ${selectedStyleType} style`,
+        suggestedHairstyleDescription: `This is a mock description for a ${suggestedName}. It's designed for a ${selectedStyleType.toLowerCase()} vibe, offering a stylish yet manageable look.`,
+        hairstyleVisualizationImagePrompt: `photorealistic image of a ${suggestedName} hairstyle, ${selectedStyleType} style`,
+        haircutOptionId: randomOption.id, // Include the ID
       };
       setAiSuggestion(mockResult);
-      setCurrentTryOnStyleName(mockResult.suggestedHairstyleName); // Set this for the try-on button context
+      setCurrentTryOnStyleName(mockResult.suggestedHairstyleName);
+      setCurrentTryOnOptionId(mockResult.haircutOptionId || null);
       toast({ title: "AI Suggestion Ready!", description: `Our AI stylist (mock) thinks a ${mockResult.suggestedHairstyleName} would look great!`});
       setLoadingAISuggestion(false);
     }, 2000); 
   };
 
-  const handleGenerateTryOnImage = async (hairstyleName: string) => {
+  const handleGenerateTryOnImage = async (hairstyleName: string, optionId?: string | null) => {
     if (!userPhotoDataUri) {
       toast({ title: "Missing Photo", description: "Please provide your photo first to visualize a hairstyle.", variant: "destructive" });
       return;
@@ -179,6 +183,13 @@ export default function HairstyleSuggestionPage() {
     setLoadingTryOnImage(true);
     setGeneratedTryOnImageURL(null); 
     setCurrentTryOnStyleName(hairstyleName); 
+    setCurrentTryOnOptionId(optionId || null);
+
+    // If an AI suggestion was active, clear it when trying on a predefined style
+    if (aiSuggestion && aiSuggestion.suggestedHairstyleName !== hairstyleName) {
+      setAiSuggestion(null);
+    }
+
 
     setTimeout(() => {
       const placeholderUrl = `https://placehold.co/400x400.png?text=Try-On:${hairstyleName.substring(0,10).replace(/\s/g,'+')}&font=lora`;
@@ -188,12 +199,20 @@ export default function HairstyleSuggestionPage() {
     }, 3000); 
   };
 
-  const handleBookStyle = (styleName: string) => {
-    if (!styleName) {
+  const handleBookStyle = () => {
+    const styleToBook = currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName;
+    const optionIdToBook = currentTryOnOptionId || aiSuggestion?.haircutOptionId;
+
+    if (!styleToBook) {
         toast({title: "No style selected", description: "Please select or get a style suggestion to book.", variant: "destructive"});
         return;
     }
-    router.push(`/barbers?style=${encodeURIComponent(styleName)}`);
+    
+    let queryString = `style=${encodeURIComponent(styleToBook)}`;
+    if (optionIdToBook) {
+        queryString += `&haircutOptionId=${encodeURIComponent(optionIdToBook)}`;
+    }
+    router.push(`/barbers?${queryString}`);
   };
 
   const clearPhotoAndSuggestions = () => {
@@ -201,9 +220,14 @@ export default function HairstyleSuggestionPage() {
     setAiSuggestion(null);
     setGeneratedTryOnImageURL(null);
     setCurrentTryOnStyleName(null);
+    setCurrentTryOnOptionId(null);
     setAiError(null);
     if(showWebcam) stopWebcam();
   }
+  
+  // Determine the name of the style currently being considered for booking/visualization
+  const activeStyleNameForActions = currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName;
+
 
   return (
     <div className="max-w-4xl mx-auto py-8 space-y-12">
@@ -228,19 +252,17 @@ export default function HairstyleSuggestionPage() {
                 </div>
             )}
             
-            {/* Webcam Section - Always render video tag if showWebcam is true */}
             {showWebcam && !userPhotoDataUri && (
                 <Card className="p-4">
                     <CardTitle className="text-lg mb-2">Webcam Preview</CardTitle>
                     <video ref={videoRef} className="w-full aspect-video rounded-md bg-muted" autoPlay playsInline muted />
-                    
-                    {hasCameraPermission === false && ( // Permission denied
+                    {hasCameraPermission === false && (
                         <Alert variant="destructive" className="mt-2">
                             <AlertTitle>Camera Access Denied</AlertTitle>
                             <AlertDescription>Please enable camera permissions in your browser settings to use the webcam. You might need to refresh the page after enabling.</AlertDescription>
                         </Alert>
                     )}
-                    {hasCameraPermission === null && !cameraStream && ( // Permission pending / initial state
+                    {hasCameraPermission === null && !cameraStream && ( 
                         <Alert variant="default" className="mt-2">
                             <AlertTitle>Requesting Camera</AlertTitle>
                             <AlertDescription>Attempting to access your webcam. Please allow permission when prompted.</AlertDescription>
@@ -286,9 +308,11 @@ export default function HairstyleSuggestionPage() {
 
           {aiError && <p className="text-destructive text-center py-2 bg-destructive/10 rounded-md">{aiError}</p>}
 
+          {/* Display area for AI suggestion details AND try-on image */}
           {(aiSuggestion || generatedTryOnImageURL || loadingTryOnImage) && (
             <Card className="bg-muted/50 p-4 sm:p-6 mt-6 shadow-md">
-                {aiSuggestion && !generatedTryOnImageURL && !loadingTryOnImage && ( 
+                {/* AI Suggestion Details (only if AI suggestion is active and no try-on image is being loaded/shown for a *different* style) */}
+                {aiSuggestion && (!generatedTryOnImageURL && !loadingTryOnImage || currentTryOnStyleName === aiSuggestion.suggestedHairstyleName) && ( 
                     <>
                         <CardTitle className="text-xl text-primary mb-1">AI Suggestion: {aiSuggestion.suggestedHairstyleName}</CardTitle>
                         <CardDescription className="mb-3">Detected Face Shape (Mock): <span className="font-semibold">{aiSuggestion.detectedFaceShape}</span></CardDescription>
@@ -296,26 +320,31 @@ export default function HairstyleSuggestionPage() {
                         <p className="text-xs text-muted-foreground italic break-words mb-3">For visualization reference (Mock): &quot;{aiSuggestion.hairstyleVisualizationImagePrompt}&quot;</p>
                     </>
                 )}
+                {/* Title for a tried-on popular style if no AI suggestion is active or if it's different */}
+                {currentTryOnStyleName && (!aiSuggestion || aiSuggestion.suggestedHairstyleName !== currentTryOnStyleName) && !loadingTryOnImage &&(
+                     <CardTitle className="text-xl text-primary mb-3">Trying On: {currentTryOnStyleName}</CardTitle>
+                )}
+
 
               <div className="grid md:grid-cols-2 gap-6 items-start">
                 <div className="space-y-3">
-                    {(currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName) && (
+                    {activeStyleNameForActions && (
                          <Button 
-                            onClick={() => handleGenerateTryOnImage(currentTryOnStyleName || aiSuggestion!.suggestedHairstyleName)} 
+                            onClick={() => handleGenerateTryOnImage(activeStyleNameForActions, currentTryOnOptionId || aiSuggestion?.haircutOptionId)} 
                             disabled={loadingTryOnImage || !userPhotoDataUri}
                             className="w-full"
                             variant="default"
                           >
-                            {loadingTryOnImage && currentTryOnStyleName === (currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName) ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
-                            Visualize "{currentTryOnStyleName || aiSuggestion!.suggestedHairstyleName}" (Mock)
+                            {loadingTryOnImage && activeStyleNameForActions === currentTryOnStyleName ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageIcon className="mr-2 h-4 w-4" />}
+                            Visualize "{activeStyleNameForActions}" (Mock)
                           </Button>
                     )}
                      <Button 
-                      onClick={() => handleBookStyle(currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName || "Selected Style")}
+                      onClick={handleBookStyle}
                       className="w-full bg-accent hover:bg-accent/90"
-                      disabled={!(currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName)}
+                      disabled={!activeStyleNameForActions}
                     >
-                      Book "{currentTryOnStyleName || aiSuggestion?.suggestedHairstyleName || "Selected Style"}" <ArrowRight className="ml-2 h-4 w-4" />
+                      Book "{activeStyleNameForActions}" <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                 </div>
 
@@ -330,7 +359,7 @@ export default function HairstyleSuggestionPage() {
                   ) : (
                     <div className="text-center text-muted-foreground p-4">
                       <ImageIcon className="h-12 w-12 mx-auto mb-2"/>
-                      <p className="text-sm">Your AI-generated hairstyle visualization (mock) will appear here once you generate or try on a style.</p>
+                      <p className="text-sm">Your AI-generated hairstyle visualization (mock) will appear here.</p>
                     </div>
                   )}
                 </div>
@@ -346,13 +375,13 @@ export default function HairstyleSuggestionPage() {
           <p className="text-muted-foreground">Browse these common hairstyles, try them on with your photo, and book directly.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {predefinedHairstyles.map((style) => (
+          {popularDisplayStyles.map((style) => (
             <Card key={style.id} className="overflow-hidden hover:shadow-lg transition-shadow group flex flex-col">
               <div className="relative aspect-video bg-gray-100">
                 <Image 
-                    src={style.imagePlaceholder} 
+                    src={style.exampleImageUrl || `https://placehold.co/300x200.png?text=${encodeURIComponent(style.name.substring(0,10))}`}
                     alt={style.name} 
-                    data-ai-hint={style.imageHint} 
+                    data-ai-hint={style.defaultImageHint || `${style.gender} ${style.name} hairstyle`} 
                     fill 
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover transition-transform group-hover:scale-105" 
@@ -362,20 +391,24 @@ export default function HairstyleSuggestionPage() {
                 <CardTitle className="text-lg">{style.name}</CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 flex-grow">
+                 {/* Can add a short description for popular styles here if needed */}
               </CardContent>
               <CardFooter className="p-4 pt-0 mt-auto flex flex-col sm:flex-row gap-2">
                 <Button 
-                    className="w-full sm:w-1/2" 
+                    className="w-full sm:flex-1" 
                     variant="outline"
                     onClick={() => {
-                        setAiSuggestion(null);
-                        handleGenerateTryOnImage(style.name);
+                        handleGenerateTryOnImage(style.name, style.id);
                     }}
                     disabled={!userPhotoDataUri || loadingTryOnImage}
                 >
                     <Eye className="mr-2 h-4 w-4"/> Try On (Mock)
                 </Button>
-                <Button className="w-full sm:w-1/2" onClick={() => handleBookStyle(style.name)}>
+                <Button className="w-full sm:flex-1" onClick={() => {
+                    setCurrentTryOnStyleName(style.name); // Set context for booking
+                    setCurrentTryOnOptionId(style.id);
+                    handleBookStyle();
+                  }}>
                   Book Style <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
@@ -389,4 +422,3 @@ export default function HairstyleSuggestionPage() {
     </div>
   );
 }
-    

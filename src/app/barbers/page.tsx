@@ -8,16 +8,20 @@ import type { Barber } from '@/types';
 import BarberCard from '@/components/barbers/BarberCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, Scissors } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { getHaircutOptionById } from '@/config/hairstyleOptions';
+
 
 function BarbersPageContent() {
   const [barbers, setBarbers] = useState<Barber[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  
   const searchParams = useSearchParams();
-  const suggestedStyle = searchParams.get('style');
+  const suggestedStyleName = searchParams.get('style'); // Text description
+  const haircutOptionId = searchParams.get('haircutOptionId'); // Specific ID from config
 
   useEffect(() => {
     const fetchBarbers = async () => {
@@ -32,7 +36,7 @@ function BarbersPageContent() {
         const querySnapshot = await getDocs(q);
         const fetchedBarbers: Barber[] = [];
         querySnapshot.forEach((doc) => {
-          fetchedBarbers.push({ uid: doc.id, ...doc.data(), subscriptionActive: true } as Barber);
+          fetchedBarbers.push({ uid: doc.id, ...doc.data(), subscriptionActive: true } as Barber); // Assuming active for now
         });
         setBarbers(fetchedBarbers);
       } catch (err) {
@@ -50,17 +54,26 @@ function BarbersPageContent() {
     (barber.displayName && barber.displayName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (barber.specialties && barber.specialties.join(', ').toLowerCase().includes(searchTerm.toLowerCase())) ||
     (barber.bio && barber.bio.toLowerCase().includes(searchTerm.toLowerCase()))
+    // Advanced filtering based on haircutOptionId would be done here if fully implemented
+    // For now, it's handled in BarberCard display logic
   );
+
+  const pageTitle = haircutOptionId 
+    ? `Barbers who might offer ${getHaircutOptionById(haircutOptionId)?.name || suggestedStyleName || 'your selected style'}`
+    : suggestedStyleName 
+    ? `Barbers who might suit a "${suggestedStyleName}" style`
+    : "Find Your Next Barber";
+  
+  const pageDescription = haircutOptionId || suggestedStyleName
+    ? `Browse barbers below. Those explicitly offering this style will be highlighted.`
+    : "Browse our curated list of talented barbers.";
+
 
   return (
     <div className="space-y-8">
       <header className="text-center">
-        <h1 className="text-4xl font-headline font-bold text-primary">Find Your Next Barber</h1>
-        {suggestedStyle ? (
-          <p className="mt-2 text-lg text-foreground/80">Browsing barbers who can help with a <span className="font-semibold text-accent">{suggestedStyle}</span> style.</p>
-        ) : (
-          <p className="mt-2 text-lg text-foreground/80">Browse our curated list of talented barbers.</p>
-        )}
+        <h1 className="text-4xl font-headline font-bold text-primary">{pageTitle}</h1>
+        <p className="mt-2 text-lg text-foreground/80">{pageDescription}</p>
       </header>
 
       <div className="relative max-w-xl mx-auto">
@@ -82,18 +95,24 @@ function BarbersPageContent() {
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(6)].map((_, i) => (
+          {[...Array(8)].map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
       ) : filteredBarbers.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredBarbers.map((barber) => (
-            <BarberCard key={barber.uid} barber={barber} suggestedStyle={suggestedStyle} />
+            <BarberCard 
+              key={barber.uid} 
+              barber={barber} 
+              preferredHaircutOptionId={haircutOptionId}
+              preferredStyleName={suggestedStyleName}
+            />
           ))}
         </div>
       ) : (
         <div className="text-center py-12">
+           <Scissors className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
           <p className="text-xl text-muted-foreground">No barbers found matching your criteria.</p>
           {searchTerm && <p className="text-sm text-muted-foreground mt-2">Try adjusting your search terms.</p>}
         </div>
@@ -120,4 +139,3 @@ const CardSkeleton = () => (
     <Skeleton className="h-10 w-full mt-2 rounded-md" />
   </div>
 );
-

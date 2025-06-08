@@ -230,7 +230,9 @@ function BarberProfilePageContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const barberId = params.barberId as string;
-  const suggestedStyle = searchParams.get('style');
+  
+  const preferredStyleName = searchParams.get('style'); // Text description
+  const preferredHaircutOptionId = searchParams.get('haircutOptionId'); // Specific ID
 
   const [barber, setBarber] = useState<Barber | null>(null);
   const [loading, setLoading] = useState(true);
@@ -257,7 +259,13 @@ function BarberProfilePageContent() {
   if (error) return <div className="text-center py-10"><p className="text-xl text-destructive">{error}</p><Button asChild variant="link" className="mt-4"><Link href="/barbers"><ChevronLeft className="mr-2 h-4 w-4" /> Back to Barbers</Link></Button></div>;
   if (!barber) return null;
 
-  const bookLink = suggestedStyle ? `/barbers/${barber.uid}/book?style=${encodeURIComponent(suggestedStyle)}` : `/barbers/${barber.uid}/book`;
+  let bookLink = `/barbers/${barber.uid}/book`;
+  const queryParams = new URLSearchParams();
+  if (preferredStyleName) queryParams.append('style', preferredStyleName);
+  if (preferredHaircutOptionId) queryParams.append('haircutOptionId', preferredHaircutOptionId);
+  const queryString = queryParams.toString();
+  if (queryString) bookLink += `?${queryString}`;
+
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -269,7 +277,7 @@ function BarberProfilePageContent() {
             <h1 className="text-4xl font-headline font-bold text-primary mb-2">{barber.displayName}</h1>
             {barber.location && <p className="text-muted-foreground flex items-center mb-1"><MapPin className="w-4 h-4 mr-2"/> {barber.location}</p>}
             <p className="text-muted-foreground flex items-center mb-1"><Users className="w-4 h-4 mr-2"/> Member since {barber.createdAt ? new Date(barber.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</p>
-            {barber.experienceYears !== undefined && <p className="text-muted-foreground flex items-center mb-1"><Briefcase className="w-4 h-4 mr-2"/> {barber.experienceYears} years of experience</p>}
+            {barber.experienceYears !== undefined && barber.experienceYears !== null && <p className="text-muted-foreground flex items-center mb-1"><Briefcase className="w-4 h-4 mr-2"/> {barber.experienceYears} years of experience</p>}
             <p className="text-foreground/80 my-4">{barber.bio || "Dedicated to crafting the perfect look."}</p>
             {barber.specialties && barber.specialties.length > 0 && (
               <div className="mb-4">
@@ -277,7 +285,7 @@ function BarberProfilePageContent() {
                 <div className="flex flex-wrap gap-2">{barber.specialties.map(specialty => (<Badge key={specialty} variant="secondary" className="px-3 py-1 text-sm">{specialty}</Badge>))}</div>
               </div>
             )}
-            <Button size="lg" asChild className="w-full md:w-auto mt-4 transition-all-subtle hover:scale-105"><Link href={bookLink}>Book Appointment {suggestedStyle && `for ${suggestedStyle}`}</Link></Button>
+            <Button size="lg" asChild className="w-full md:w-auto mt-4 transition-all-subtle hover:scale-105"><Link href={bookLink}>Book Appointment {preferredStyleName && `for "${preferredStyleName}"`}</Link></Button>
           </div>
         </div>
       </Card>
