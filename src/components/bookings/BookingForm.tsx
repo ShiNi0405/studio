@@ -120,7 +120,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         form.setValue('serviceId', undefined, { shouldValidate: true }); // Clear actual serviceId
         // Keep current style text or set to empty if user explicitly picked "custom"
         // This allows them to type if the field was empty, or confirm their existing text for custom req.
-        form.setValue('style', form.getValues('style') || '', { shouldValidate: true }); 
+        form.setValue('style', form.getValues('style') || '', { shouldValidate: true });
     } else if (serviceIdValue) { // A specific barber's service is selected
         const service = barber.servicesOffered?.find(s => s.id === serviceIdValue);
         if (service) {
@@ -155,21 +155,17 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
       const appointmentDateTime = new Date(data.date);
       appointmentDateTime.setHours(hours, minutes, 0, 0);
 
-      let servicePayloadDetails: {
-        serviceName?: string | null;
-        servicePrice?: number | null;
-        serviceDuration?: number | null;
-      } = {};
+      const styleValue = selectedOfferedHaircut ? null : (data.style || preferredStyleNameFromQuery || null);
       
-      // Use selectedOfferedHaircut if available (which is synced with form's serviceId)
-      if (selectedOfferedHaircut) {
-        servicePayloadDetails = {
-            serviceName: selectedOfferedHaircut.haircutName,
-            servicePrice: selectedOfferedHaircut.price,
-            serviceDuration: selectedOfferedHaircut.duration,
-        };
-      }
+      let serviceNameValue: string | null = null;
+      let servicePriceValue: number | null = null;
+      let serviceDurationValue: number | null = null;
 
+      if (selectedOfferedHaircut) {
+        serviceNameValue = selectedOfferedHaircut.haircutName;
+        servicePriceValue = selectedOfferedHaircut.price;
+        serviceDurationValue = selectedOfferedHaircut.duration === undefined ? null : selectedOfferedHaircut.duration;
+      }
 
       const bookingPayload = {
         customerId: customer.uid,
@@ -178,11 +174,11 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         barberName: barber.displayName || 'Barber',
         appointmentDateTime: appointmentDateTime,
         time: data.time,
-        // If a service was selected, its name is primary. If not, use the style field.
-        // The style field is also used if user selected a service then switched to "custom request".
-        style: selectedOfferedHaircut ? undefined : (data.style || preferredStyleNameFromQuery), 
-        ...servicePayloadDetails,
-        notes: data.notes || '',
+        style: styleValue,
+        serviceName: serviceNameValue,
+        servicePrice: servicePriceValue,
+        serviceDuration: serviceDurationValue,
+        notes: data.notes || null,
       };
 
       // @ts-ignore
@@ -194,7 +190,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             title: "Booking Request Sent!",
             description: `Your request for ${bookedItemName} on ${format(data.date, "PPP")} at ${data.time} has been sent. Status: ${result.status?.replace(/_/g, ' ')}.`
         });
-        form.reset({ 
+        form.reset({
             style: preferredStyleNameFromQuery || undefined,
             serviceId: undefined,
             time: "",
@@ -247,7 +243,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         {servicesAvailable ? (
            <FormField
             control={form.control}
-            name="serviceId" 
+            name="serviceId"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Select a Haircut/Service</FormLabel>
@@ -296,7 +292,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                         placeholder="e.g., Men's classic cut, AI suggested style"
                         {...field}
                         value={field.value || ""} // Use controlled value
-                        readOnly={!!(preferredStyleNameFromQuery && (!preferredHaircutOptionIdFromQuery || !currentServiceForDisplay) && !servicesAvailable)} 
+                        readOnly={!!(preferredStyleNameFromQuery && (!preferredHaircutOptionIdFromQuery || !currentServiceForDisplay) && !servicesAvailable)}
                     />
                     </FormControl>
                     {!servicesAvailable && (
@@ -378,7 +374,7 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
                 <p className="text-xl font-bold text-accent">RM{currentServiceForDisplay.price.toFixed(2)}</p>
             </div>
         )}
-        
+
         {/* Submit Button now triggers AlertDialog via form.handleSubmit */}
         <Button
             type="submit" // Changed from AlertDialogTrigger to direct submit
