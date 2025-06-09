@@ -4,14 +4,14 @@
 import { useEffect, useState, Suspense } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useParams, useRouter } from 'next/navigation';
-import { db } from '@/lib/firebase/config';
-import type { Barber } from '@/types';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { db } from '@/infrastructure/firebase/config';
+import type { Barber } from '@/domain/entities';
+import { useAuth } from '@/presentation/contexts/AuthContext';
+import { Button } from '@/presentation/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/ui/card';
 import { ChevronLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import BookingForm from '@/components/bookings/BookingForm';
+import BookingForm from '@/presentation/components/bookings/BookingForm';
 
 function BookAppointmentPageContent() {
   const params = useParams();

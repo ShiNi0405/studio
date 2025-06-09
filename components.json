@@ -1,3 +1,4 @@
+
 {
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "default",
@@ -11,11 +12,16 @@
     "prefix": ""
   },
   "aliases": {
-    "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
-    "lib": "@/lib",
-    "hooks": "@/hooks"
+    "components": "@/presentation/components",
+    "utils": "@/shared/utils",
+    "ui": "@/presentation/components/ui",
+    "lib": "@/infrastructure", 
+    "hooks": "@/presentation/hooks",
+    "contexts": "@/presentation/contexts",
+    "domain": "@/domain",
+    "application": "@/application",
+    "infrastructure": "@/infrastructure",
+    "shared": "@/shared"
   },
   "iconLibrary": "lucide"
 }

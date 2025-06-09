@@ -1,15 +1,15 @@
 
 'use client';
 
-import { AuthForm } from '@/components/auth/AuthForm';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { AuthForm } from '@/presentation/components/auth/AuthForm';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
+import { useToast } from '@/presentation/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import type { UserRole } from '@/types';
+import { useAuth } from '@/presentation/contexts/AuthContext';
+import type { UserRole } from '@/domain/entities';
 
 
 function SignupPageContent() {

@@ -1,11 +1,12 @@
+
 'use client';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import type { Review } from '@/types';
+import { db } from '@/infrastructure/firebase/config';
+import type { Review } from '@/domain/entities';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
 import Link from 'next/link';
 import { AlertCircle, ChevronLeft, Loader2, RefreshCw, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';

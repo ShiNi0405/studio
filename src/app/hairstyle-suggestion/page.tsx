@@ -4,22 +4,22 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from '@/presentation/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/presentation/components/ui/card';
+import { Label } from '@/presentation/components/ui/label';
+import { Input } from '@/presentation/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/presentation/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/presentation/components/ui/select";
 import { ArrowRight, Loader2, ImageIcon, Camera, UploadCloud, RotateCcw, Sparkles, Wand2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/config/hairstyleOptions';
+import { useToast } from '@/presentation/hooks/use-toast';
+import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/shared/config/hairstyleOptions';
 
 interface AISuggestion {
   detectedFaceShape: string;
   suggestedHairstyleName: string;
   suggestedHairstyleDescription: string;
-  hairstyleImageURL: string; // URL for the image of the hairstyle itself
-  hairstyleOptionId?: string; // To link to a predefined option if applicable
+  hairstyleImageURL: string; 
+  hairstyleOptionId?: string; 
 }
 
 export default function AIHairstyleSuggestionPage() {
@@ -120,15 +120,14 @@ export default function AIHairstyleSuggestionPage() {
     setLoadingAISuggestion(true);
     setAIError(null);
     setAISuggestion(null);
-    setGeneratedTryOnImageURL(null); // Clear previous try-on
+    setGeneratedTryOnImageURL(null); 
 
-    // Mock AI Logic
     setTimeout(() => {
       const allStyles = [...MENS_HAIRCUT_OPTIONS, ...WOMENS_HAIRCUT_OPTIONS].filter(opt => !opt.isCustom);
       const randomStyle = allStyles[Math.floor(Math.random() * allStyles.length)];
       
       const mockSuggestion: AISuggestion = {
-        detectedFaceShape: "Oval", // Mock
+        detectedFaceShape: "Oval", 
         suggestedHairstyleName: randomStyle.name,
         suggestedHairstyleDescription: `This ${randomStyle.name} is a great fit for an ${selectedStyleType.toLowerCase()} look. It complements an oval face shape by adding volume and texture, framing your features elegantly.`,
         hairstyleImageURL: randomStyle.exampleImageUrl || `https://placehold.co/300x300.png?text=${encodeURIComponent(randomStyle.name.substring(0,15))}`,
@@ -146,7 +145,6 @@ export default function AIHairstyleSuggestionPage() {
     setLoadingTryOnImage(true);
     setGeneratedTryOnImageURL(null);
 
-    // Mock AI Image Generation (Try-On)
     setTimeout(() => {
       const placeholderText = `Try-On:\n${aiSuggestion.suggestedHairstyleName.substring(0,20).replace(/\s/g,'+')}`;
       const placeholderUrl = `https://placehold.co/400x400.png?text=${encodeURIComponent(placeholderText)}&font=lora`;
@@ -177,7 +175,6 @@ export default function AIHairstyleSuggestionPage() {
         </CardHeader>
         <CardContent className="p-6 space-y-6">
           <div className="grid md:grid-cols-2 gap-8 items-start">
-            {/* Left Column: Photo Upload and AI Controls */}
             <div className="space-y-6">
               <Card>
                 <CardHeader><CardTitle className="text-xl">Step 1: Your Photo</CardTitle></CardHeader>
@@ -239,7 +236,6 @@ export default function AIHairstyleSuggestionPage() {
               )}
             </div>
 
-            {/* Right Column: AI Suggestion and Try-On Result */}
             <div className="space-y-6">
               {loadingAISuggestion && (
                 <Card className="text-center p-6"><Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-2" /><p>Getting your AI suggestion...</p></Card>

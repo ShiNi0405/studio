@@ -1,14 +1,14 @@
 
 'use client';
 
-import { AuthForm } from '@/components/auth/AuthForm';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
+import { AuthForm } from '@/presentation/components/auth/AuthForm';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
+import { useToast } from '@/presentation/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 
 export default function LoginPage() {
   const router = useRouter();

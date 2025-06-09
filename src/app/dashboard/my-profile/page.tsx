@@ -1,25 +1,25 @@
 
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import type { Barber, OfferedHaircut } from '@/types';
+import { db } from '@/infrastructure/firebase/config';
+import type { Barber, OfferedHaircut } from '@/domain/entities';
 import { useEffect, useState } from 'react';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
+import { Input } from '@/presentation/components/ui/input';
+import { Textarea } from '@/presentation/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/presentation/components/ui/form';
 import Link from 'next/link';
 import { ChevronLeft, Loader2, AlertCircle, Save, PlusCircle, Trash2, DollarSign, MapPin, Scissors, ImageUp, User, Users } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from '@/presentation/hooks/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/presentation/components/ui/tabs";
 import Image from 'next/image';
-import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/config/hairstyleOptions';
+import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/shared/config/hairstyleOptions';
 
 
 const offeredHaircutSchema = z.object({
@@ -99,7 +99,7 @@ export default function MyProfilePage() {
             ...s,
             price: s.price === undefined || s.price === null ? 0 : Number(s.price),
             duration: s.duration === undefined || s.duration === null ? undefined : Number(s.duration),
-            portfolioImageURLs: (s.portfolioImageURLs || []).map(url => (typeof url === 'string' ? { url } : url)) // Ensure portfolio images are objects
+            portfolioImageURLs: (s.portfolioImageURLs || []).map(url => (typeof url === 'string' ? { url } : url)) 
           })),
         });
       } else { setError("Profile data not found."); }
@@ -186,7 +186,6 @@ export default function MyProfilePage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Basic Info Fields */}
               <FormField control={form.control} name="displayName" render={({ field }) => (<FormItem><FormLabel>Display Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="photoURL" render={({ field }) => (<FormItem><FormLabel>Profile Picture URL</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel className="flex items-center"><MapPin className="w-4 h-4 mr-2"/>Location</FormLabel><FormControl><Input placeholder="e.g., Kuala Lumpur" {...field} /></FormControl><FormMessage /></FormItem>)} />
@@ -195,7 +194,6 @@ export default function MyProfilePage() {
               <FormField control={form.control} name="experienceYears" render={({ field }) => (<FormItem><FormLabel>Years of Experience</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="availability" render={({ field }) => (<FormItem><FormLabel>Availability (JSON)</FormLabel><FormControl><Textarea placeholder='{"monday": ["09:00-17:00"]}' {...field} /></FormControl><FormDescription>General weekly availability. Example: {"{\"monday\": [\"09:00-12:00\", \"13:00-17:00\"], \"tuesday\": [\"09:00-17:00\"]}"}</FormDescription><FormMessage /></FormItem>)} />
 
-              {/* Haircut Option Bank */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center"><Scissors className="w-5 h-5 mr-2 text-primary"/>Haircut Option Bank</CardTitle>
@@ -237,7 +235,6 @@ export default function MyProfilePage() {
                 </CardContent>
               </Card>
 
-              {/* My Offered Haircuts */}
               {serviceFields.length > 0 && (
                 <Card>
                   <CardHeader>
@@ -286,7 +283,6 @@ export default function MyProfilePage() {
   );
 }
 
-// Helper component for OfferedHaircut form section
 interface OfferedHaircutFormSectionProps {
   form: ReturnType<typeof useForm<ProfileFormValues>>;
   index: number;

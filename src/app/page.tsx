@@ -3,10 +3,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/presentation/components/ui/card';
 import { ArrowRight, Search, Sparkles as SparklesIcon, Loader2, UserCog, CalendarClock, Star as StarIcon, CalendarDays, Scissors, Wand2, Palette } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -25,14 +25,14 @@ export default function HomePage() {
       title: "AI Hairstyle Advisor",
       description: "Upload your photo, tell us your style vibe, and get an AI-powered hairstyle recommendation tailored for you.",
       link: "/hairstyle-suggestion",
-      icon: Wand2, // Changed icon
+      icon: Wand2, 
       actionText: "Get AI Suggestion"
     },
     {
       title: "Browse & Try Styles",
       description: "Explore our curated collection of popular men's and women's hairstyles. Upload your photo to visualize them with a mock try-on.",
-      link: "/browse-styles", // New link
-      icon: Palette, // Changed icon
+      link: "/browse-styles", 
+      icon: Palette, 
       actionText: "Explore Styles"
     },
     {
@@ -67,7 +67,6 @@ export default function HomePage() {
         </p>
       </header>
 
-      {/* Conditional Call-to-Action Section */}
       <section className="w-full max-w-5xl">
         {!user && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
@@ -80,7 +79,7 @@ export default function HomePage() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="w-full text-lg py-8" asChild>
-              <Link href="/hairstyle-suggestion"> {/* Guests can also try AI advisor */}
+              <Link href="/hairstyle-suggestion"> 
                 <span>
                   <Wand2 className="mr-3 h-6 w-6" />
                   AI Hairstyle Advisor
@@ -146,7 +145,6 @@ export default function HomePage() {
         )}
       </section>
 
-      {/* Feature Cards - Visible to all */}
       <section className="grid md:grid-cols-3 gap-8 w-full max-w-5xl pt-10">
         <Card className="text-left transition-all-subtle hover:shadow-xl hover:scale-105">
           <CardHeader>
@@ -191,7 +189,6 @@ export default function HomePage() {
         </Card>
       </section>
 
-      {/* Conditional "Join as Barber" Section */}
       {!user && (
         <section className="w-full max-w-5xl pt-10">
           <Card className="bg-primary text-primary-foreground overflow-hidden">
@@ -231,5 +228,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-    

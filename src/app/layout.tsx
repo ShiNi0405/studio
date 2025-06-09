@@ -1,8 +1,9 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster";
-import AuthProvider from '@/contexts/AuthContext';
-import Navbar from '@/components/layout/Navbar';
+import { Toaster } from "@/presentation/components/ui/toaster";
+import AuthProvider from '@/presentation/contexts/AuthContext';
+import Navbar from '@/presentation/components/layout/Navbar';
 
 export const metadata: Metadata = {
   title: 'Barbermatch',

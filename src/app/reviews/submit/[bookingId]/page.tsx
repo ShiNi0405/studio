@@ -1,23 +1,23 @@
 
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { doc, getDoc, serverTimestamp, addDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore'; // Removed setDoc as addDoc is used
-import { db } from '@/lib/firebase/config';
-import type { Booking, Barber, Review } from '@/types'; // Added Review type
+import { useAuth } from '@/presentation/contexts/AuthContext';
+import { doc, getDoc, serverTimestamp, addDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore'; 
+import { db } from '@/infrastructure/firebase/config';
+import type { Booking, Barber, Review } from '@/domain/entities'; 
 import { useEffect, useState, Suspense } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
+import { Textarea } from '@/presentation/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/presentation/components/ui/form';
 import Link from 'next/link';
 import { ChevronLeft, Loader2, AlertCircle, Star, Send } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils'; 
+import { useToast } from '@/presentation/hooks/use-toast';
+import { cn } from '@/shared/utils'; 
 
 const reviewSchema = z.object({
   rating: z.coerce.number().min(1, "Rating is required").max(5, "Rating cannot exceed 5"),
@@ -126,7 +126,7 @@ function SubmitReviewPageContent() {
 
     setIsSubmitting(true);
     try {
-      const reviewData: Omit<Review, 'id'> = { // Omit 'id' as Firestore generates it
+      const reviewData: Omit<Review, 'id'> = { 
         bookingId: booking.id,
         customerId: user.uid,
         customerName: user.displayName || "Anonymous",

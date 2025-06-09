@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useAuth } from '@/presentation/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
 import Link from 'next/link';
 import { ChevronLeft, Construction, Loader2 } from 'lucide-react';
 

@@ -6,15 +6,15 @@ import { collection, query, where, getDocs, doc, getDoc, orderBy, Timestamp } fr
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { db } from '@/lib/firebase/config';
-import type { Barber, Review, OfferedHaircut } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { db } from '@/infrastructure/firebase/config';
+import type { Barber, Review, OfferedHaircut } from '@/domain/entities';
+import { Button } from '@/presentation/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/presentation/components/ui/card';
+import { Skeleton } from '@/presentation/components/ui/skeleton';
 import { CalendarCheck, ChevronLeft, MapPin, Scissors, Star, Users, Clock, Image as ImageIcon, Briefcase, Tag, Sparkles } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/presentation/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/presentation/components/ui/tabs";
 
 
 const PortfolioSection = ({ offeredHaircuts }: { offeredHaircuts?: OfferedHaircut[] }) => {
@@ -231,8 +231,8 @@ function BarberProfilePageContent() {
   const searchParams = useSearchParams();
   const barberId = params.barberId as string;
   
-  const preferredStyleName = searchParams.get('style'); // Text description
-  const preferredHaircutOptionId = searchParams.get('haircutOptionId'); // Specific ID
+  const preferredStyleName = searchParams.get('style'); 
+  const preferredHaircutOptionId = searchParams.get('haircutOptionId'); 
 
   const [barber, setBarber] = useState<Barber | null>(null);
   const [loading, setLoading] = useState(true);

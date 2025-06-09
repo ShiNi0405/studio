@@ -1,18 +1,18 @@
 
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import type { Booking } from '@/types';
+import { db } from '@/infrastructure/firebase/config';
+import type { Booking } from '@/domain/entities';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
 import Link from 'next/link';
 import { AlertCircle, CalendarCheck, CalendarX, CheckCircle, ChevronLeft, Clock, DollarSign, Edit3, HelpCircle, Loader2, MessageSquareWarning, RefreshCw, Star, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/presentation/components/ui/badge';
+import { useToast } from '@/presentation/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +22,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger, // Added AlertDialogTrigger
-} from "@/components/ui/alert-dialog";
+  AlertDialogTrigger, 
+} from "@/presentation/components/ui/alert-dialog";
 import { acceptProposedPriceAction, rejectProposedPriceAction, updateBookingStatusAction } from '@/app/actions/bookingActions';
 
 
@@ -84,8 +84,6 @@ export default function MyBookingsPage() {
   
   const handleCancelBookingByCustomer = async (bookingId: string) => {
     setUpdatingBookingId(bookingId);
-    // Ask for confirmation before cancelling
-    // For simplicity, directly updating. Consider adding an AlertDialog for confirmation.
     const result = await updateBookingStatusAction(bookingId, 'cancelled_by_customer');
     if (result.success) {
       toast({ title: "Booking Cancelled", description: "Your booking has been cancelled." });
@@ -99,16 +97,16 @@ export default function MyBookingsPage() {
 
   const getStatusBadgeVariant = (status: Booking['status']): "default" | "secondary" | "destructive" | "outline" | "warning" => {
     switch (status) {
-      case 'confirmed': return 'default'; // Blue
+      case 'confirmed': return 'default'; 
       case 'pending_customer_request':
-      case 'pending_barber_proposal': return 'secondary'; // Gray
-      case 'pending_customer_approval': return 'warning'; // Yellow-ish
-      case 'completed': return 'outline'; // Green-ish (via icon)
+      case 'pending_barber_proposal': return 'secondary'; 
+      case 'pending_customer_approval': return 'warning'; 
+      case 'completed': return 'outline'; 
       case 'cancelled_by_customer':
       case 'cancelled_by_barber':
       case 'rejected_by_barber':
       case 'rejected_by_customer':
-        return 'destructive'; // Red
+        return 'destructive'; 
       default: return 'secondary';
     }
   };
@@ -227,4 +225,3 @@ export default function MyBookingsPage() {
     </div>
   );
 }
-    

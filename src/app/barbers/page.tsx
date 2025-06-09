@@ -3,14 +3,14 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import type { Barber } from '@/types';
-import BarberCard from '@/components/barbers/BarberCard';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Input } from '@/components/ui/input';
+import { db } from '@/infrastructure/firebase/config';
+import type { Barber } from '@/domain/entities';
+import BarberCard from '@/presentation/components/barbers/BarberCard';
+import { Skeleton } from '@/presentation/components/ui/skeleton';
+import { Input } from '@/presentation/components/ui/input';
 import { Search, Scissors } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { getHaircutOptionById } from '@/config/hairstyleOptions';
+import { getHaircutOptionById } from '@/shared/config/hairstyleOptions';
 
 
 function BarbersPageContent() {
@@ -20,8 +20,8 @@ function BarbersPageContent() {
   const [error, setError] = useState<string | null>(null);
   
   const searchParams = useSearchParams();
-  const suggestedStyleName = searchParams.get('style'); // Text description
-  const haircutOptionId = searchParams.get('haircutOptionId'); // Specific ID from config
+  const suggestedStyleName = searchParams.get('style'); 
+  const haircutOptionId = searchParams.get('haircutOptionId'); 
 
   useEffect(() => {
     const fetchBarbers = async () => {
@@ -31,12 +31,11 @@ function BarbersPageContent() {
         const q = query(
           collection(db, 'users'), 
           where('role', '==', 'barber'),
-          // where('subscriptionActive', '==', true) // Enable this once subscription logic is in place
         );
         const querySnapshot = await getDocs(q);
         const fetchedBarbers: Barber[] = [];
         querySnapshot.forEach((doc) => {
-          fetchedBarbers.push({ uid: doc.id, ...doc.data(), subscriptionActive: true } as Barber); // Assuming active for now
+          fetchedBarbers.push({ uid: doc.id, ...doc.data(), subscriptionActive: true } as Barber); 
         });
         setBarbers(fetchedBarbers);
       } catch (err) {
@@ -54,8 +53,6 @@ function BarbersPageContent() {
     (barber.displayName && barber.displayName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (barber.specialties && barber.specialties.join(', ').toLowerCase().includes(searchTerm.toLowerCase())) ||
     (barber.bio && barber.bio.toLowerCase().includes(searchTerm.toLowerCase()))
-    // Advanced filtering based on haircutOptionId would be done here if fully implemented
-    // For now, it's handled in BarberCard display logic
   );
 
   const pageTitle = haircutOptionId 

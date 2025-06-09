@@ -1,20 +1,20 @@
 
 'use client';
 
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/presentation/contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import type { Booking, BookingStatus } from '@/types';
+import { db } from '@/infrastructure/firebase/config';
+import type { Booking, BookingStatus } from '@/domain/entities';
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/presentation/components/ui/card';
+import { Button } from '@/presentation/components/ui/button';
 import Link from 'next/link';
 import { AlertCircle, CalendarCheck, ChevronLeft, Clock, DollarSign, Edit3, Loader2, RefreshCw, XCircle, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; // Added import for Label
+import { Badge } from '@/presentation/components/ui/badge';
+import { useToast } from '@/presentation/hooks/use-toast';
+import { Input } from '@/presentation/components/ui/input';
+import { Label } from '@/presentation/components/ui/label';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,7 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/presentation/components/ui/alert-dialog";
 import { updateBookingStatusAction, proposePriceAction } from '@/app/actions/bookingActions';
 
 
@@ -62,11 +62,11 @@ export default function BookingRequestsPage() {
       const q = query(
         collection(db, 'bookings'),
         where('barberId', '==', user.uid),
-        orderBy('appointmentDateTime', 'asc') // Fetch all relevant, then filter client-side or add more complex query
+        orderBy('appointmentDateTime', 'asc') 
       );
       const querySnapshot = await getDocs(q);
       const fetchedBookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking))
-        .filter(b => ['pending_barber_proposal', 'pending_customer_request', 'pending_customer_approval', 'confirmed'].includes(b.status)); // Filter relevant statuses
+        .filter(b => ['pending_barber_proposal', 'pending_customer_request', 'pending_customer_approval', 'confirmed'].includes(b.status)); 
       setBookings(fetchedBookings);
     } catch (err: any) {
       console.error("Error fetching booking requests:", err);
@@ -81,7 +81,7 @@ export default function BookingRequestsPage() {
     const result = await updateBookingStatusAction(bookingId, newStatus);
     if (result.success) {
       toast({ title: "Booking Updated", description: `Booking status changed to ${newStatus.replace(/_/g, ' ')}.`});
-      fetchBookingRequests(); // Refresh list
+      fetchBookingRequests(); 
     } else {
       toast({ title: "Update Failed", description: result.error, variant: "destructive" });
     }
@@ -90,7 +90,7 @@ export default function BookingRequestsPage() {
 
   const openProposePriceDialog = (booking: Booking) => {
     setCurrentBookingForPriceProposal(booking);
-    setProposedPrice(booking.servicePrice?.toString() || ''); // Pre-fill if there's an initial estimate perhaps
+    setProposedPrice(booking.servicePrice?.toString() || ''); 
     setProposePriceDialogOpen(true);
   };
 
@@ -117,9 +117,9 @@ export default function BookingRequestsPage() {
   const getStatusBadgeVariant = (status: Booking['status']): "default" | "secondary" | "destructive" | "outline" | "warning" => {
     switch (status) {
       case 'confirmed': return 'default';
-      case 'pending_customer_request': return 'warning'; // Yellow-ish
+      case 'pending_customer_request': return 'warning'; 
       case 'pending_barber_proposal': return 'secondary';
-      case 'pending_customer_approval': return 'warning'; // Yellow-ish
+      case 'pending_customer_approval': return 'warning'; 
       case 'completed': return 'outline';
       case 'cancelled_by_customer':
       case 'cancelled_by_barber':
@@ -176,7 +176,7 @@ export default function BookingRequestsPage() {
                 </Badge>
               </CardContent>
               <CardFooter className="border-t pt-4 flex flex-col gap-2">
-                {booking.status === 'pending_barber_proposal' && ( // Priced service, barber needs to accept/reject
+                {booking.status === 'pending_barber_proposal' && ( 
                   <div className="w-full flex gap-2">
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
@@ -199,7 +199,7 @@ export default function BookingRequestsPage() {
                     </Button>
                   </div>
                 )}
-                {booking.status === 'pending_customer_request' && ( // Custom style, barber needs to propose price
+                {booking.status === 'pending_customer_request' && ( 
                   <Button size="sm" onClick={() => openProposePriceDialog(booking)} disabled={updatingBookingId === booking.id} className="w-full">
                     {updatingBookingId === booking.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit3 className="mr-2 h-4 w-4" />}Propose Price
                   </Button>
@@ -223,7 +223,6 @@ export default function BookingRequestsPage() {
         </div>
       )}
 
-      {/* Propose Price Dialog */}
       <AlertDialog open={proposePriceDialogOpen} onOpenChange={setProposePriceDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -258,4 +257,3 @@ export default function BookingRequestsPage() {
     </div>
   );
 }
-    

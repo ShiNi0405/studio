@@ -4,15 +4,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/presentation/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/presentation/components/ui/card';
+import { Label } from '@/presentation/components/ui/label';
+import { Input } from '@/presentation/components/ui/input';
+import { Alert, AlertDescription, AlertTitle } from '@/presentation/components/ui/alert';
 import { ArrowRight, Loader2, ImageIcon, Camera, UploadCloud, RotateCcw, Eye, User, Users, Palette } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/config/hairstyleOptions';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from '@/presentation/hooks/use-toast';
+import { MENS_HAIRCUT_OPTIONS, WOMENS_HAIRCUT_OPTIONS, type HaircutOptionConfig } from '@/shared/config/hairstyleOptions';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/presentation/components/ui/tabs";
 
 
 export default function BrowseStylesPage() {
@@ -41,7 +41,7 @@ export default function BrowseStylesPage() {
       const reader = new FileReader();
       reader.onload = (e) => {
         setUserPhotoDataUri(e.target?.result as string);
-        setGeneratedTryOnImageURL(null); // Clear previous try-on when photo changes
+        setGeneratedTryOnImageURL(null); 
         setCurrentTryOnStyleName(null);
         setCurrentTryOnOptionId(null);
         if (showWebcam) stopWebcam(); 
@@ -110,7 +110,7 @@ export default function BrowseStylesPage() {
       context?.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
       const dataUri = canvas.toDataURL('image/png');
       setUserPhotoDataUri(dataUri);
-      setGeneratedTryOnImageURL(null); // Clear try-on when new photo captured
+      setGeneratedTryOnImageURL(null); 
       setCurrentTryOnStyleName(null);
       setCurrentTryOnOptionId(null);
       stopWebcam(); 
@@ -131,7 +131,6 @@ export default function BrowseStylesPage() {
     setCurrentTryOnStyleName(hairstyleName); 
     setCurrentTryOnOptionId(optionId || null);
 
-    // Mock AI Image Generation (Try-On)
     setTimeout(() => {
       const placeholderText = `Try-On:\n${hairstyleName.substring(0,20).replace(/\s/g,'+')}`;
       const placeholderUrl = `https://placehold.co/400x400.png?text=${encodeURIComponent(placeholderText)}&font=lora`;
@@ -178,7 +177,6 @@ export default function BrowseStylesPage() {
         <CardContent className="p-6 space-y-6">
           
           <div className="grid md:grid-cols-2 gap-6 items-start">
-            {/* Photo Upload and Display Section */}
             <div className="space-y-4">
               <Label className="text-md font-semibold block">Step 1: Provide Your Photo</Label>
               {!userPhotoDataUri && !showWebcam && (
@@ -226,7 +224,6 @@ export default function BrowseStylesPage() {
               )}
             </div>
 
-            {/* Try-On Result Section */}
             <div className="space-y-3">
                  <Label className="text-md font-semibold block">Step 2: See Your (Mock) Try-On Here</Label>
                  <Card className="relative aspect-square rounded-lg overflow-hidden bg-slate-200 flex items-center justify-center shadow-inner min-h-[250px] p-4">
@@ -343,5 +340,3 @@ export default function BrowseStylesPage() {
     </div>
   );
 }
-
-    
