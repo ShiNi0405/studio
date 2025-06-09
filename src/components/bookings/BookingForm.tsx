@@ -176,8 +176,8 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
         time: data.time,
         style: styleValue,
         serviceName: serviceNameValue,
-        servicePrice: servicePriceValue,
-        serviceDuration: serviceDurationValue,
+        servicePrice: servicePriceValue, // Will be null if not selectedOfferedHaircut
+        serviceDuration: serviceDurationValue, // Will be null if not selectedOfferedHaircut or not set
         notes: data.notes || null,
       };
 
@@ -388,22 +388,21 @@ export default function BookingForm({ barber, customer }: BookingFormProps) {
             {/* AlertDialogTrigger is removed from here as the button above handles form submission */}
             <AlertDialogContent>
                 <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Your Appointment Details</AlertDialogTitle>
-                <AlertDialogDescription>
-                  <div>
+                  <AlertDialogTitle>Confirm Your Appointment Details</AlertDialogTitle>
+                  <AlertDialogDescription>
                     Review your request for <span className="font-semibold">{barber.displayName}</span>:
-                  </div>
-                  <ul className="mt-3 space-y-1 text-sm text-foreground/90 list-disc list-inside">
+                  </AlertDialogDescription>
+                  {/* List and conditional price note are now siblings to AlertDialogDescription */}
+                  <ul className="mt-1 space-y-1 text-sm text-foreground/90 list-disc list-inside">
                       <li><strong>Service:</strong> {dialogServiceDescription}</li>
                       <li><strong>Date:</strong> {formData.date ? format(formData.date, "PPP") : 'Not set'}</li>
                       <li><strong>Time:</strong> {formData.time || 'Not set'}</li>
                       <li><strong>Price:</strong> <span className="font-semibold">{dialogPriceDisplay}</span></li>
                       {formData.notes && (<li><strong>Notes:</strong> {formData.notes}</li>)}
                   </ul>
-                    {dialogPriceDisplay.includes("to be confirmed") && (
+                  {dialogPriceDisplay.includes("to be confirmed") && (
                     <p className="mt-2 text-xs text-muted-foreground">The final price for custom styles or unpriced services will be proposed by the barber for your approval.</p>
-                    )}
-                </AlertDialogDescription>
+                  )}
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => setIsDialogControlledOpen(false)} disabled={isSubmitting}>Cancel</AlertDialogCancel>
