@@ -1,10 +1,8 @@
 
-'use server';
-
 import { Timestamp } from 'firebase/firestore';
 import { bookingRepository, type CreateBookingDataInternal } from '@/lib/firebase/repositories/bookingRepository';
 import type { BookingStatus, Booking } from '@/types';
-import { revalidatePath } from 'next/cache';
+// Removed: import { revalidatePath } from 'next/cache';
 
 // Interface for data coming from the action/UI layer
 export interface CreateBookingServiceData {
@@ -42,11 +40,10 @@ export class BookingService {
 
     const bookingId = await this.repo.create(bookingDataInternal);
 
-    // Revalidation logic should ideally be closer to where paths are known,
-    // or passed in, but for simplicity keeping it here for now.
-    revalidatePath('/dashboard/my-bookings');
-    revalidatePath('/dashboard/booking-requests');
-    revalidatePath(`/barbers/${data.barberId}`);
+    // Removed revalidatePath calls from here
+    // revalidatePath('/dashboard/my-bookings');
+    // revalidatePath('/dashboard/booking-requests');
+    // revalidatePath(`/barbers/${data.barberId}`);
 
     return { bookingId, status: initialStatus };
   }
@@ -58,8 +55,9 @@ export class BookingService {
     // Future: Add business rule validation here (e.g., can only transition from X to Y)
     // For now, directly updating as per original logic
     await this.repo.updateStatus(bookingId, newStatus);
-    revalidatePath('/dashboard/my-bookings');
-    revalidatePath('/dashboard/booking-requests');
+    // Removed revalidatePath calls from here
+    // revalidatePath('/dashboard/my-bookings');
+    // revalidatePath('/dashboard/booking-requests');
     return { newStatus };
   }
 
@@ -69,23 +67,26 @@ export class BookingService {
     }
     // Business Logic: When barber proposes price, status changes to pending_customer_approval
     await this.repo.updateProposedPrice(bookingId, proposedPrice, 'pending_customer_approval');
-    revalidatePath('/dashboard/my-bookings');
-    revalidatePath('/dashboard/booking-requests');
+    // Removed revalidatePath calls from here
+    // revalidatePath('/dashboard/my-bookings');
+    // revalidatePath('/dashboard/booking-requests');
   }
 
   async acceptProposedPrice(bookingId: string): Promise<void> {
     // Business Logic: Customer accepts, status becomes confirmed
     await this.repo.updateStatus(bookingId, 'confirmed');
-    revalidatePath('/dashboard/my-bookings');
-    revalidatePath('/dashboard/booking-requests');
+    // Removed revalidatePath calls from here
+    // revalidatePath('/dashboard/my-bookings');
+    // revalidatePath('/dashboard/booking-requests');
     // Potentially trigger notification to barber here
   }
 
   async rejectProposedPrice(bookingId: string): Promise<void> {
     // Business Logic: Customer rejects, status becomes rejected_by_customer
     await this.repo.updateStatus(bookingId, 'rejected_by_customer');
-    revalidatePath('/dashboard/my-bookings');
-    revalidatePath('/dashboard/booking-requests');
+    // Removed revalidatePath calls from here
+    // revalidatePath('/dashboard/my-bookings');
+    // revalidatePath('/dashboard/booking-requests');
   }
 
   async getBookingById(bookingId: string): Promise<Booking | null> {

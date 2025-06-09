@@ -3,6 +3,7 @@
 
 import { bookingService, type CreateBookingServiceData } from '@/services/bookingService';
 import type { BookingStatus } from '@/types';
+import { revalidatePath } from 'next/cache'; // Make sure revalidatePath is imported here
 
 // Kept original interface for compatibility with BookingForm, but service layer uses its own.
 interface CreateBookingActionData {
@@ -22,7 +23,6 @@ interface CreateBookingActionData {
 export async function createBookingAction(data: CreateBookingActionData) {
   try {
     // Map data to the structure expected by BookingService
-    // Note: CreateBookingServiceData is very similar, this mapping is minor here but good practice.
     const serviceData: CreateBookingServiceData = {
         customerId: data.customerId,
         customerName: data.customerName,
@@ -38,6 +38,12 @@ export async function createBookingAction(data: CreateBookingActionData) {
     };
 
     const { bookingId, status } = await bookingService.createBooking(serviceData);
+    
+    // Revalidate paths after successful service call
+    revalidatePath('/dashboard/my-bookings');
+    revalidatePath('/dashboard/booking-requests');
+    revalidatePath(`/barbers/${data.barberId}`); // Assuming data.barberId is available for this path
+
     return { success: true, bookingId, status };
   } catch (error: any) {
     console.error('Error creating booking via action:', error);
@@ -57,6 +63,15 @@ export async function updateBookingStatusAction(
 ) {
   try {
     const result = await bookingService.updateBookingStatus(bookingId, newStatus);
+    
+    // Revalidate paths after successful service call
+    revalidatePath('/dashboard/my-bookings');
+    revalidatePath('/dashboard/booking-requests');
+    // Consider revalidating specific barber's page if status change affects their availability display
+    // const booking = await bookingService.getBookingById(bookingId);
+    // if (booking) revalidatePath(`/barbers/${booking.barberId}`);
+
+
     return { success: true, newStatus: result.newStatus };
   } catch (error: any) {
     console.error('Error updating booking status via action:', error);
@@ -67,10 +82,14 @@ export async function updateBookingStatusAction(
 export async function proposePriceAction(bookingId: string, proposedPrice: number) {
   try {
     await bookingService.proposePrice(bookingId, proposedPrice);
+
+    // Revalidate paths after successful service call
+    revalidatePath('/dashboard/my-bookings');
+    revalidatePath('/dashboard/booking-requests');
+
     return { success: true };
   } catch (error: any) {
     console.error('Error proposing price via action:', error);
-    // The service layer might throw specific errors, like "Proposed price must be greater than zero."
     return { success: false, error: error.message || "Could not propose price." };
   }
 }
@@ -78,6 +97,11 @@ export async function proposePriceAction(bookingId: string, proposedPrice: numbe
 export async function acceptProposedPriceAction(bookingId: string) {
   try {
     await bookingService.acceptProposedPrice(bookingId);
+
+    // Revalidate paths after successful service call
+    revalidatePath('/dashboard/my-bookings');
+    revalidatePath('/dashboard/booking-requests');
+
     return { success: true };
   } catch (error: any) {
     console.error('Error accepting proposed price via action:', error);
@@ -88,6 +112,11 @@ export async function acceptProposedPriceAction(bookingId: string) {
 export async function rejectProposedPriceAction(bookingId: string) {
   try {
     await bookingService.rejectProposedPrice(bookingId);
+
+    // Revalidate paths after successful service call
+    revalidatePath('/dashboard/my-bookings');
+    revalidatePath('/dashboard/booking-requests');
+
     return { success: true };
   } catch (error: any) {
     console.error('Error rejecting proposed price via action:', error);
