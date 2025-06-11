@@ -1,37 +1,26 @@
-
-'use client';
-
-import type { ReactNode } from 'react';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { 
   User as FirebaseUser,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut as firebaseSignOut, // Renamed to avoid conflict
+  signOut as firebaseSignOut,
   onAuthStateChanged,
   updateProfile
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase/config'; // Corrected import path
-import { Skeleton } from '@/components/ui/skeleton';
+import { auth, db } from '../lib/firebase/config';
 
 export type UserRole = 'customer' | 'barber';
 
-// Extend FirebaseUser with custom fields
 export interface AppUser extends FirebaseUser {
   role?: UserRole;
-  // displayName is already part of FirebaseUser, but we ensure it's available
-  // photoURL is also part of FirebaseUser
-  // We can add other app-specific fields if needed directly here or in specific types
-  createdAt?: Timestamp; // Added from existing AppUser type
-  // Barber specific fields that might be part of the user object after fetch
+  createdAt?: Timestamp;
   bio?: string;
   specialties?: string[];
   experienceYears?: number;
-  availability?: string; // JSON string
+  availability?: string;
   subscriptionActive?: boolean;
 }
-
 
 interface AuthContextType {
   user: AppUser | null;
@@ -48,22 +37,18 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!auth || !db) {
-      setLoading(false); 
-      return;
-    }
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
-          const appUserData = userDocSnap.data() as AppUser; 
+          const appUserData = userDocSnap.data() as AppUser;
           setUser({
-            ...firebaseUser, 
-            ...appUserData,   
+            ...firebaseUser,
+            ...appUserData,
           });
         } else {
-          setUser(firebaseUser as AppUser); 
+          setUser(firebaseUser as AppUser);
         }
       } else {
         setUser(null);
@@ -87,12 +72,12 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       email: firebaseUser.email,
       displayName: displayName,
       role: role,
-      createdAt: serverTimestamp() as Timestamp, // Cast for immediate use, Firestore handles conversion
-      photoURL: firebaseUser.photoURL, 
+      createdAt: serverTimestamp() as Timestamp,
+      photoURL: firebaseUser.photoURL,
     };
 
     if (role === 'barber') {
-      userDocData.availability = JSON.stringify({}); // Default empty availability
+      userDocData.availability = JSON.stringify({});
       userDocData.subscriptionActive = false;
       userDocData.bio = "";
       userDocData.specialties = [];
@@ -103,8 +88,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     
     setUser({
       ...firebaseUser,
-      ...userDocData,  
-      createdAt: new Timestamp(Math.floor(Date.now()/1000),0) // client-side approximation for immediate UI
+      ...userDocData,
+      createdAt: new Timestamp(Math.floor(Date.now()/1000), 0)
     } as AppUser);
   };
 
@@ -116,23 +101,6 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
     setUser(null);
   };
-  
-  if (loading) { // Changed condition here
-    return (
-      <div className="flex flex-col min-h-screen">
-        <header className="bg-card border-b p-4">
-          <div className="container mx-auto flex justify-between items-center">
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-8 w-24" />
-          </div>
-        </header>
-        <main className="flex-grow container mx-auto p-4">
-          <Skeleton className="h-64 w-full" />
-        </main>
-      </div>
-    );
-  }
-
 
   return (
     <AuthContext.Provider value={{ user, loading, signIn, signUp, logout }}>
