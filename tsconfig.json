@@ -1,6 +1,8 @@
 
 {
+  "extends": "expo/tsconfig.base",
   "compilerOptions": {
+<<<<<<< HEAD
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -31,3 +33,8 @@
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
+=======
+    "strict": true
+  }
+}
+>>>>>>> 68bfd65dcfee1cc08a2d9c3176584419ee9b1ff5
